@@ -1,0 +1,442 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>X投稿 文章生成（テンプレ×変数×組み合わせ）</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Hiragino Sans", "Noto Sans JP", sans-serif; margin: 16px; line-height: 1.4; }
+    h1 { font-size: 18px; margin: 0 0 12px; }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .card { border: 1px solid #ddd; border-radius: 10px; padding: 12px; }
+    label { display:block; font-size: 12px; color:#555; margin: 8px 0 6px; }
+    textarea, input, select { width:100%; box-sizing: border-box; padding: 10px; border:1px solid #ccc; border-radius: 8px; font-size: 14px; }
+    textarea { min-height: 140px; resize: vertical; }
+    button { padding: 10px 12px; border: 1px solid #111; border-radius: 10px; background:#111; color:#fff; font-size: 14px; cursor:pointer; }
+    button.secondary { background:#fff; color:#111; }
+    .btns { display:flex; gap:10px; flex-wrap: wrap; margin-top: 10px; }
+    .muted { color:#666; font-size: 12px; }
+    .out { margin-top: 12px; display: grid; gap: 10px; }
+    .item { border:1px solid #eee; border-radius: 10px; padding: 10px; }
+    .item pre { white-space: pre-wrap; margin: 0; font-size: 14px; }
+    .topbar { display:flex; justify-content: space-between; align-items: center; gap:10px; margin-bottom: 10px; flex-wrap: wrap; }
+    .pill { font-size: 12px; padding: 4px 8px; border-radius: 999px; border:1px solid #ddd; color:#444; }
+    @media (max-width: 900px) { .row { grid-template-columns: 1fr; } }
+  </style>
+</head>
+
+<body>
+  <div class="topbar">
+    <h1>X投稿 文章生成（テンプレ×変数×組み合わせ）</h1>
+    <span class="pill">ローカルHTMLで動作 / コピペOK</span>
+  </div>
+
+  <div class="row">
+    <div class="card">
+      <label>テンプレート（{{変数名}} を使う）</label>
+      <select id="templateSelect"></select>
+
+      <label>テンプレ本文</label>
+      <textarea id="templateText"></textarea>
+
+      <div class="muted">
+        例：{{target}} / {{pain}} / {{benefit}} / {{cta}} / {{tag}}<br>
+        ※変数名は自由。本文内に出てきた変数を自動抽出して入力欄を作るよ。
+      </div>
+
+      <div class="btns">
+        <button class="secondary" id="saveTemplateBtn">テンプレ保存</button>
+        <button class="secondary" id="newTemplateBtn">新規テンプレ</button>
+        <button class="secondary" id="deleteTemplateBtn">削除</button>
+      </div>
+      <div class="muted" style="margin-top:8px;">テンプレはブラウザの localStorage に保存されます。</div>
+    </div>
+
+    <div class="card">
+      <label>生成数（最大）</label>
+      <input id="maxGen" type="number" min="1" max="200" value="30">
+
+      <label>変数ごとの候補（1行=1候補）</label>
+      <div id="varsArea"></div>
+
+      <div class="btns">
+        <button id="generateBtn">生成</button>
+        <button class="secondary" id="shuffleBtn">シャッフル生成</button>
+        <button class="secondary" id="copyAllBtn">全部コピー</button>
+        <button class="secondary" id="exportBtn">JSON書き出し</button>
+        <button class="secondary" id="importBtn">JSON読み込み</button>
+        <input id="importFile" type="file" accept="application/json" style="display:none;">
+      </div>
+
+      <div class="muted" id="stats"></div>
+    </div>
+  </div>
+
+  <div class="out" id="output"></div>
+
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+
+  // ---- default templates
+  const defaultTemplates = [
+    {
+      id: "t1",
+      name: "悩み→解決→行動",
+      text:
+`{{target}}。
+
+{{pain}}
+{{solution}}
+
+{{benefit}}{{cta}}
+{{tag}}`
+    },
+    {
+      id: "t2",
+      name: "共感→気づき→提案",
+      text:
+`「{{pain}}」って{{target}}ほど刺さる。
+
+実は{{insight}}。
+だから{{proposal}}。
+
+{{cta}}
+{{tag}}`
+    },
+    {
+      id: "t3",
+      name: "実績→理由→募集",
+      text:
+`{{result}}しました。
+
+理由はシンプルで、{{reason}}。
+同じように{{target}}を変えたい人は{{offer}}。
+
+{{cta}}
+{{tag}}`
+    }
+  ];
+
+  // ---- storage
+  const LS_KEY = "x_post_maker_templates_v1";
+  const LS_LAST = "x_post_maker_last_template_v1";
+
+  function loadTemplates() {
+    const raw = localStorage.getItem(LS_KEY);
+    if (!raw) return [...defaultTemplates];
+    try {
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) && parsed.length ? parsed : [...defaultTemplates];
+    } catch {
+      return [...defaultTemplates];
+    }
+  }
+
+  function saveTemplates(list) {
+    localStorage.setItem(LS_KEY, JSON.stringify(list));
+  }
+
+  let templates = loadTemplates();
+
+  // ---- UI: template select
+  function refreshTemplateSelect(selectedId) {
+    const sel = $("templateSelect");
+    sel.innerHTML = "";
+    templates.forEach(t => {
+      const opt = document.createElement("option");
+      opt.value = t.id;
+      opt.textContent = t.name;
+      sel.appendChild(opt);
+    });
+    const last = localStorage.getItem(LS_LAST);
+    sel.value = selectedId || last || templates[0]?.id;
+  }
+
+  function currentTemplate() {
+    const id = $("templateSelect").value;
+    return templates.find(t => t.id === id) || templates[0];
+  }
+
+  // ---- vars extraction
+  function extractVars(text) {
+    const re = /\{\{\s*([a-zA-Z0-9_\-ぁ-んァ-ヶ一-龠]+)\s*\}\}/g;
+    const set = new Set();
+    let m;
+    while ((m = re.exec(text)) !== null) set.add(m[1]);
+    return [...set];
+  }
+
+  // Keep var candidates in memory + LS
+  const VAR_KEY = "x_post_maker_vars_v1";
+  function loadVarBank() {
+    try {
+      return JSON.parse(localStorage.getItem(VAR_KEY) || "{}") || {};
+    } catch { return {}; }
+  }
+  function saveVarBank(bank) {
+    localStorage.setItem(VAR_KEY, JSON.stringify(bank));
+  }
+  let varBank = loadVarBank();
+
+  function renderVars() {
+    const text = $("templateText").value;
+    const vars = extractVars(text);
+    const area = $("varsArea");
+    area.innerHTML = "";
+
+    if (vars.length === 0) {
+      area.innerHTML = `<div class="muted">テンプレ内に {{変数}} がありません。追加すると入力欄が出ます。</div>`;
+      return;
+    }
+
+    vars.forEach(v => {
+      const wrap = document.createElement("div");
+      wrap.style.marginTop = "10px";
+
+      const label = document.createElement("label");
+      label.textContent = `{{${v}}} の候補`;
+      wrap.appendChild(label);
+
+      const ta = document.createElement("textarea");
+      ta.id = `var_${v}`;
+      ta.placeholder = "1行=1候補。空行は無視";
+      ta.value = (varBank[v] || []).join("\n");
+      ta.addEventListener("input", () => {
+        varBank[v] = ta.value.split("\n").map(s => s.trim()).filter(Boolean);
+        saveVarBank(varBank);
+      });
+      ta.style.minHeight = "110px";
+      wrap.appendChild(ta);
+
+      area.appendChild(wrap);
+    });
+  }
+
+  // ---- generation
+  function cartesian(arrays) {
+    // arrays: [ [a,b], [c,d,e], ... ]
+    let res = [[]];
+    for (const arr of arrays) {
+      const next = [];
+      for (const r of res) for (const x of arr) next.push([...r, x]);
+      res = next;
+      if (res.length > 10000) break; // guard
+    }
+    return res;
+  }
+
+  function renderOutput(posts) {
+    const out = $("output");
+    out.innerHTML = "";
+    posts.forEach((p, idx) => {
+      const div = document.createElement("div");
+      div.className = "item";
+
+      const pre = document.createElement("pre");
+      pre.textContent = p;
+
+      const btn = document.createElement("button");
+      btn.textContent = "コピー";
+      btn.className = "secondary";
+      btn.style.marginTop = "8px";
+      btn.addEventListener("click", async () => {
+        try {
+          await navigator.clipboard.writeText(p);
+          btn.textContent = "コピーした";
+          setTimeout(()=> btn.textContent="コピー", 900);
+        } catch {
+          // fallback
+          const ta = document.createElement("textarea");
+          ta.value = p;
+          document.body.appendChild(ta);
+          ta.select();
+          document.execCommand("copy");
+          document.body.removeChild(ta);
+          btn.textContent = "コピーした";
+          setTimeout(()=> btn.textContent="コピー", 900);
+        }
+      });
+
+      div.appendChild(pre);
+      div.appendChild(btn);
+      out.appendChild(div);
+    });
+  }
+
+  function generatePosts({ shuffle=false } = {}) {
+    const tpl = $("templateText").value;
+    const vars = extractVars(tpl);
+    const maxGen = Math.max(1, Math.min(200, parseInt($("maxGen").value || "30", 10)));
+
+    // collect candidates
+    const candidates = {};
+    for (const v of vars) {
+      const ta = $(`var_${v}`);
+      const list = (ta?.value || "")
+        .split("\n").map(s => s.trim()).filter(Boolean);
+      candidates[v] = list;
+    }
+
+    // validate
+    const missing = vars.filter(v => !candidates[v] || candidates[v].length === 0);
+    if (missing.length) {
+      $("stats").textContent = `未入力の変数があります：${missing.map(v=>`{{${v}}}`).join(", ")}`;
+      renderOutput([]);
+      return;
+    }
+
+    // build combinations
+    const arrays = vars.map(v => candidates[v]);
+    let combos = cartesian(arrays); // list of arrays with chosen values
+    // convert to posts
+    let posts = combos.map(choiceArr => {
+      let s = tpl;
+      vars.forEach((v, i) => {
+        // replace all occurrences
+        const re = new RegExp("\\{\\{\\s*" + v.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\s*\\}\\}", "g");
+        s = s.replace(re, choiceArr[i]);
+      });
+      return s.trim();
+    });
+
+    // optional shuffle
+    if (shuffle) {
+      for (let i = posts.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [posts[i], posts[j]] = [posts[j], posts[i]];
+      }
+    }
+
+    posts = posts.slice(0, maxGen);
+    $("stats").textContent = `生成: ${posts.length}件 / 組み合わせ総数(概算): ${combos.length}件`;
+    renderOutput(posts);
+  }
+
+  // ---- copy all
+  async function copyAll() {
+    const items = [...$("output").querySelectorAll("pre")].map(p => p.textContent);
+    const all = items.join("\n\n---\n\n");
+    if (!all.trim()) return;
+    try {
+      await navigator.clipboard.writeText(all);
+      $("stats").textContent = "全部コピーしました（区切り：---）";
+    } catch {
+      const ta = document.createElement("textarea");
+      ta.value = all;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand("copy");
+      document.body.removeChild(ta);
+      $("stats").textContent = "全部コピーしました（区切り：---）";
+    }
+  }
+
+  // ---- template CRUD
+  function loadTemplateToEditor(id) {
+    const t = templates.find(x => x.id === id) || templates[0];
+    $("templateText").value = t.text;
+    localStorage.setItem(LS_LAST, t.id);
+    renderVars();
+    generatePosts({ shuffle: false });
+  }
+
+  function saveCurrentTemplate() {
+    const id = $("templateSelect").value;
+    let t = templates.find(x => x.id === id);
+    if (!t) return;
+
+    const name = prompt("テンプレ名（一覧表示用）", t.name) ?? t.name;
+    t.name = name.trim() || t.name;
+    t.text = $("templateText").value;
+
+    saveTemplates(templates);
+    refreshTemplateSelect(t.id);
+    renderVars();
+    $("stats").textContent = "テンプレを保存しました";
+  }
+
+  function newTemplate() {
+    const name = prompt("新規テンプレ名", "新しいテンプレ") || "新しいテンプレ";
+    const id = "t" + Math.random().toString(16).slice(2);
+    const t = { id, name, text: `{{target}}へ。\n{{pain}}\n\n{{cta}}\n{{tag}}` };
+    templates.unshift(t);
+    saveTemplates(templates);
+    refreshTemplateSelect(t.id);
+    loadTemplateToEditor(t.id);
+    $("stats").textContent = "新規テンプレを作成しました";
+  }
+
+  function deleteTemplate() {
+    const id = $("templateSelect").value;
+    if (templates.length <= 1) {
+      $("stats").textContent = "テンプレは最低1つ必要です。";
+      return;
+    }
+    const t = templates.find(x => x.id === id);
+    if (!confirm(`「${t?.name || "このテンプレ"}」を削除しますか？`)) return;
+    templates = templates.filter(x => x.id !== id);
+    saveTemplates(templates);
+    refreshTemplateSelect(templates[0].id);
+    loadTemplateToEditor(templates[0].id);
+    $("stats").textContent = "削除しました";
+  }
+
+  // ---- export/import
+  function exportJSON() {
+    const payload = { templates, varBank };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "x_post_maker_backup.json";
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function importJSON(file) {
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const obj = JSON.parse(reader.result);
+        if (obj.templates && Array.isArray(obj.templates)) templates = obj.templates;
+        if (obj.varBank && typeof obj.varBank === "object") varBank = obj.varBank;
+
+        saveTemplates(templates);
+        saveVarBank(varBank);
+        refreshTemplateSelect(templates[0]?.id);
+        loadTemplateToEditor($("templateSelect").value);
+        $("stats").textContent = "読み込み完了";
+      } catch (e) {
+        $("stats").textContent = "読み込み失敗：JSONが壊れてるか形式が違います";
+      }
+    };
+    reader.readAsText(file);
+  }
+
+  // ---- events
+  refreshTemplateSelect();
+  loadTemplateToEditor($("templateSelect").value);
+
+  $("templateSelect").addEventListener("change", (e) => loadTemplateToEditor(e.target.value));
+  $("templateText").addEventListener("input", () => { renderVars(); });
+
+  $("generateBtn").addEventListener("click", () => generatePosts({ shuffle:false }));
+  $("shuffleBtn").addEventListener("click", () => generatePosts({ shuffle:true }));
+  $("copyAllBtn").addEventListener("click", copyAll);
+
+  $("saveTemplateBtn").addEventListener("click", saveCurrentTemplate);
+  $("newTemplateBtn").addEventListener("click", newTemplate);
+  $("deleteTemplateBtn").addEventListener("click", deleteTemplate);
+
+  $("exportBtn").addEventListener("click", exportJSON);
+  $("importBtn").addEventListener("click", () => $("importFile").click());
+  $("importFile").addEventListener("change", (e) => {
+    const f = e.target.files?.[0];
+    if (f) importJSON(f);
+    e.target.value = "";
+  });
+})();
+</script>
+</body>
+</html>
