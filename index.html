@@ -1,0 +1,1368 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>SNS Hyper Core</title>
+
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Hiragino Sans", "Noto Sans JP", sans-serif; margin: 16px; line-height: 1.4; }
+    .tabbtn { border:1px solid #ddd; background:#fff; color:#111; border-radius:999px; padding:8px 12px; cursor:pointer; }
+.tabbtn.active { border-color:#111; background:#111; color:#fff; }
+    select { background:#fff; color:#111; }
+    h1 { font-size: 18px; margin: 0 0 12px; }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .card { border: 1px solid #ddd; border-radius: 10px; padding: 12px; }
+    label { display:block; font-size: 12px; color:#555; margin: 8px 0 6px; }
+    textarea, input, select { width:100%; box-sizing: border-box; padding: 10px; border:1px solid #ccc; border-radius: 8px; font-size: 14px; }
+    textarea { min-height: 140px; resize: vertical; }
+    button { padding: 10px 12px; border: 1px solid #111; border-radius: 10px; background:#111; color:#fff; font-size: 14px; cursor:pointer; }
+    button.secondary { background:#fff; color:#111; }
+    .btns { display:flex; gap:10px; flex-wrap: wrap; margin-top: 10px; }
+    .muted { color:#666; font-size: 12px; }
+    .out { margin-top: 12px; display: grid; gap: 10px; }
+    .item { border:1px solid #eee; border-radius: 10px; padding: 10px; }
+    .item pre { white-space: pre-wrap; margin: 0; font-size: 14px; }
+    .topbar { display:flex; justify-content: space-between; align-items: center; gap:10px; margin-bottom: 10px; flex-wrap: wrap; }
+    .pill { font-size: 12px; padding: 4px 8px; border-radius: 999px; border:1px solid #ddd; color:#444; }
+    @media (max-width: 900px) { .row { grid-template-columns: 1fr; } }
+  
+    /* --- License gate --- */
+    .lockbar { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+    .lockbar button { padding: 6px 10px; border-radius: 999px; font-size: 12px; }
+    .locked .card, .locked .out { opacity: .45; pointer-events: none; }
+    .locked .lockbar, .locked #licenseModal { pointer-events: auto; opacity: 1; }
+
+    #licenseModal { position: fixed; inset: 0; display:none; align-items:center; justify-content:center; background: rgba(0,0,0,.55); z-index: 9999; padding: 16px; }
+    #licenseModal .box { width: min(520px, 100%); background: #fff; border-radius: 14px; padding: 14px; border: 1px solid #ddd; }
+    #licenseModal .box h3 { margin: 0 0 8px; font-size: 16px; }
+    #licenseModal .box .muted { margin-top: 6px; }
+    #licenseModal .row { display:flex; gap:10px; }
+
+  
+    /* License gate */
+    #licenseGate {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 18px;
+      background: #ffffff;
+      z-index: 9999;
+    }
+    #licenseGate .gateBox {
+      width: min(520px, 100%);
+      border: 1px solid #ddd;
+      border-radius: 14px;
+      padding: 16px;
+      background: #fff;
+    }
+
+    /* Tabs */
+    .tabs { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin: 8px 0 12px; }
+    .tabbtn { border:1px solid #ddd; background:#fff; border-radius:999px; padding:8px 12px; cursor:pointer; }
+    .tabbtn.active { border-color:#333; }
+    .page { display:none; }
+    .page.active { display:block; }
+
+    /* Sticky action bar (main page) */
+    .stickybar { position: fixed; left: 0; right: 0; bottom: 0; background: rgba(255,255,255,0.96); border-top:1px solid #ddd;
+                 padding: 10px 12px; display:none; z-index: 50; }
+    .stickybar .inner { max-width: 1100px; margin: 0 auto; display:flex; gap:10px; justify-content:flex-end; flex-wrap:wrap; }
+    body.hasSticky { padding-bottom: 74px; }
+
+    /* Accounts table */
+    .acct-grid { display:grid; grid-template-columns: 1fr 1fr; gap:12px; }
+    .acct-table { width:100%; border-collapse: collapse; }
+    .acct-table th, .acct-table td { border-bottom:1px solid #eee; padding:8px; text-align:left; vertical-align: top; }
+    .acct-table td small { color:#666; }
+    .danger { border-color:#c00 !important; color:#c00; }
+
+  
+    .row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+    @media (max-width: 900px) { .row3 { grid-template-columns: 1fr; } }
+    .meta { font-size: 12px; color: #666; margin-top: 6px; display:flex; gap:10px; flex-wrap:wrap; }
+    .badge { display:inline-block; padding:2px 8px; border:1px solid #ddd; border-radius:999px; background:#fff; }
+    .badge.bad { border-color:#f2b8b8; background:#fff5f5; }
+
+/* --- Unlock / Lock animation --- */
+#licenseGate, #appContainer{
+  transition: opacity .25s ease, transform .25s ease;
+  will-change: opacity, transform;
+}
+.fade-in{
+  opacity: 1 !important;
+  transform: translateY(0) !important;
+}
+.fade-out{
+  opacity: 0 !important;
+  transform: translateY(8px) !important;
+}
+
+</style>
+</head>
+
+<body>
+  <!-- License Gate: shown until activation succeeds -->
+  <div id="licenseGate">
+    <div class="gateBox">
+      <h2>ライセンス認証</h2>
+      <div class="muted">キー形式：XXXX-XXXX-XXXX-XXXX（1ライセンス=1台 / アクティベートから◯日）</div>
+      <label style="margin-top:10px;">ライセンスキー</label>
+      <input id="licenseKeyInput_gate" placeholder="XXXX-XXXX-XXXX-XXXX" autocomplete="off" />
+      <div class="btns" style="margin-top:10px;">
+        <button id="activateBtn_gate" type="button">アクティベート</button>
+      </div>
+      <div class="muted" id="licenseMsg_gate"></div>
+    </div>
+  </div>
+
+  <div id="appContainer" style="display:none;">
+
+  <div class="topbar">
+    <h1>SNS Hyper Core</h1>
+<div class="lockbar">
+      <span class="pill" id="licenseStatus">🔒 未認証</span>
+      <button class="secondary" id="openLicenseBtn" type="button">ライセンス認証</button>
+    </div>
+
+  
+  <div class="tabs" id="tabs">
+    <button class="tabbtn active" type="button" data-page="pageMain">投稿生成</button>
+    <button class="tabbtn" type="button" data-page="pageAccounts">アカウント</button>
+    <button class="tabbtn" type="button" data-page="pageTelegram">Telegram</button>
+  </div>
+
+  <div class="page active" id="pageMain">
+
+  <!-- License modal -->
+  <div id="licenseModal" aria-hidden="true">
+    <div class="box">
+      <h3>ライセンス認証</h3>
+      <div class="muted">キー形式：XXXX-XXXX-XXXX-XXXX（1ライセンス=1台 / アクティベートから◯日）</div>
+      <label style="margin-top:10px;">ライセンスキー</label>
+      <input id="licenseKeyInput" placeholder="XXXX-XXXX-XXXX-XXXX" autocomplete="off" />
+      <div class="btns" style="margin-top:10px;">
+        <button id="activateBtn" type="button">アクティベート</button>
+        <button class="secondary" id="closeLicenseBtn" type="button">閉じる</button>
+      </div>
+      <div class="muted" id="licenseMsg"></div>
+    </div>
+  </div>
+
+
+  <div class="row">
+    <div class="card">
+      <label>テンプレート（{{変数名}} を使う）</label>
+      <select id="templateSelect"></select>
+
+      <label>テンプレ本文</label>
+      <textarea id="templateText"></textarea>
+
+      <div class="muted">
+        例：{{target}} / {{pain}} / {{benefit}} / {{cta}} / {{tag}}<br>
+        ※変数名は自由。本文内に出てきた変数を自動抽出して入力欄を作るよ。
+      </div>
+
+      <div class="btns">
+        <button class="secondary" id="saveTemplateBtn">テンプレ保存</button>
+        <button class="secondary" id="newTemplateBtn">新規テンプレ</button>
+        <button class="secondary" id="deleteTemplateBtn">削除</button>
+      </div>
+      <div class="muted" style="margin-top:8px;">テンプレはブラウザの localStorage に保存されます。</div>
+    </div>
+
+    <div class="card">
+      <label>生成数（最大）</label>
+      <input id="maxGen" type="number" min="1" max="200" value="30">
+
+      <label>変数ごとの候補（1行=1候補）</label>
+      <div id="varsArea"></div>
+
+
+      <label style="margin-top:12px;">バズワード辞書（1行=1フレーズ）</label>
+      <textarea id="buzzwords" placeholder="例：最短で / 9割が知らない / 今すぐ / ガチで / これだけでOK" style="min-height:92px;"></textarea>
+      <div class="muted">テンプレ内で <b>{{buzz}}</b> を使うと、生成時に辞書からランダム挿入します（未設定なら空）。</div>
+      <div class="btns">
+        <button class="secondary" id="saveBuzzBtn" type="button">辞書保存</button>
+        <button class="secondary" id="insertBuzzBtn" type="button">ランダム挿入（カーソル位置）</button>
+        <button class="secondary" id="clearBuzzBtn" type="button">辞書クリア</button>
+      </div>
+
+      <div class="btns">
+        <button id="generateBtn">生成</button>
+        <button class="secondary" id="shuffleBtn">シャッフル生成</button>
+        <button class="secondary" id="copyAllBtn">全部コピー</button>
+        <button class="secondary" id="exportBtn">JSON書き出し</button>
+        <button class="secondary" id="importBtn">JSON読み込み</button>
+        <input id="importFile" type="file" accept="application/json" style="display:none;">
+      </div>
+
+      <div class="muted" id="stats"></div>
+      <div class="muted" id="xCharInfo"></div>
+    </div>
+  </div>
+
+  <div class="out" id="output"></div>
+
+
+  </div> <!-- /pageMain -->
+
+  <div class="page" id="pageAccounts">
+    <div class="card">
+      <h2 style="margin:0 0 8px; font-size:16px;">Xアカウント保存</h2>
+      <div class="muted">※あなたの希望通り「ID/パス/メアド/メアドパス」をこのHTML内（ブラウザの保存領域）に保存します。端末共有や盗難がある環境では注意。</div>
+
+      <div class="acct-grid" style="margin-top:10px;">
+        <div>
+          <label>ラベル（例：捨て垢A）</label>
+          <input id="accLabel" placeholder="任意" />
+
+          <label>X ID（@は任意）</label>
+          <input id="accXId" placeholder="example_id" />
+
+          <label>X パスワード</label>
+          <input id="accXPw" type="password" placeholder="password" />
+
+          <label>メールアドレス</label>
+          <input id="accMail" placeholder="example@mail.com" />
+
+          <label>メール パスワード</label>
+          <input id="accMailPw" type="password" placeholder="password" />
+
+          <label>メール パス（プロバイダ用の追加情報など）</label>
+          <input id="accMailPath" placeholder="例：imap.example.com / 復旧用メモ 等" />
+
+          <label>メモ</label>
+          <textarea id="accNote" placeholder="任意メモ"></textarea>
+
+          <div class="btns">
+            <button id="accSaveBtn" type="button">保存（追加/更新）</button>
+            <button class="secondary" id="accClearBtn" type="button">入力クリア</button>
+          </div>
+
+          <div class="muted" id="accEditHint"></div>
+        </div>
+
+        <div>
+          <div class="btns" style="justify-content:flex-end;">
+            <button class="secondary" id="accExportBtn" type="button">エクスポート（JSON）</button>
+            <button class="secondary" id="accImportBtn" type="button">インポート（JSON）</button>
+            <input id="accImportFile" type="file" accept="application/json" style="display:none;">
+            <button class="danger" id="accDeleteAllBtn" type="button">全削除</button>
+          </div>
+
+          <div style="overflow:auto; border:1px solid #eee; border-radius:10px; margin-top:8px;">
+            <table class="acct-table">
+              <thead>
+                <tr>
+                  <th style="min-width:140px;">ラベル / ID</th>
+                  <th>メアド</th>
+                  <th style="min-width:260px;">操作</th>
+                </tr>
+              </thead>
+              <tbody id="accTbody"></tbody>
+            </table>
+          </div>
+          <div class="muted" id="accCount"></div>
+        </div>
+      </div>
+    </div>
+  </div> <!-- /pageAccounts -->
+
+
+  <div class="page" id="pageTelegram">
+    <div class="card">
+      <h2 style="margin:0 0 8px; font-size:16px;">Telegramボット</h2>
+      <div class="muted">※ブラウザからBot APIへ直接送信します（Bot TokenがこのPCのlocalStorageに保存されます）。</div>
+
+      <label style="margin-top:10px;">Bot Token</label>
+      <input id="tgToken" placeholder="123456:ABC-DEF..." autocomplete="off" />
+
+      <label>送信先（chat_id / @channel / -100...）</label>
+      <input id="tgChatId" placeholder="@your_channel  または  -100xxxxxxxxxx" />
+
+      <div class="row3">
+        <div>
+          <label>Parse mode</label>
+          <select id="tgParseMode">
+            <option value="">なし</option>
+            <option value="HTML">HTML</option>
+            <option value="MarkdownV2">MarkdownV2</option>
+          </select>
+        </div>
+        <div>
+          <label>リンクプレビュー</label>
+          <select id="tgPreview">
+            <option value="true">表示する</option>
+            <option value="false">表示しない</option>
+          </select>
+        </div>
+        <div>
+          <label>送信方式</label>
+          <select id="tgSendMode">
+            <option value="single">まとめて1通</option>
+            <option value="multi">1投稿=1通</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="btns" style="margin-top:10px;">
+        <button id="tgSaveBtn" class="secondary" type="button">保存</button>
+        <button id="tgSendBtn" type="button">いま送信</button>
+      </div>
+      <div class="muted" id="tgMsg"></div>
+    </div>
+
+    <div class="card">
+      <h2 style="margin:0 0 8px; font-size:16px;">予約投稿</h2>
+      <div class="muted">※このページ（ブラウザ）が開いている間だけ実行できます。閉じると送信/通知できません。</div>
+
+      <label style="margin-top:10px;">対象</label>
+      <select id="schedType">
+        <option value="tg">Telegramに送信</option>
+        <option value="x">X用リマインド（コピー用）</option>
+      </select>
+
+      <label>実行日時（日本時間）</label>
+      <input id="schedAt" type="datetime-local" />
+
+      <label>内容（空なら「最新の生成結果」を使う）</label>
+      <textarea id="schedText" placeholder="空なら、出力欄の内容を使う" style="min-height:110px;"></textarea>
+
+      <div class="btns" style="margin-top:10px;">
+        <button id="schedAddBtn" type="button">予約追加</button>
+        <button id="schedRunNowBtn" class="secondary" type="button">今すぐ実行</button>
+        <button id="schedClearBtn" class="secondary" type="button">予約全削除</button>
+      </div>
+
+      <div id="schedList" class="muted" style="margin-top:10px;"></div>
+    </div>
+  </div> <!-- /pageTelegram -->
+
+
+
+
+  <div class="stickybar" id="stickybar">
+    <div class="inner">
+      <button class="secondary" id="stickyShuffleBtn" type="button">シャッフル</button>
+      <button id="stickyGenerateBtn" type="button">生成</button>
+      <button class="secondary" id="stickyCopyAllBtn" type="button">全部コピー</button>
+    </div>
+  </div>
+
+
+  </div>
+
+<script>
+(async () => {
+  const $ = (id) => document.getElementById(id);
+
+  let LAST_POSTS = [];
+
+  // ---- License gate (server-verified)
+  // TODO: あなたのWorkers URLに差し替え
+  const LICENSE_API_BASE = "https://xpost-core.ssssqqqq255.workers.dev";
+
+ // ===== License storage keys =====
+const LS_KEY = "license_key";
+const LS_DEVICE = "license_device_id";
+const LS_EXPIRES = "license_expires_at";
+
+function getOrCreateDeviceId() {
+  let v = localStorage.getItem(LS_DEVICE);
+  if (!v) {
+    v = (crypto.randomUUID ? crypto.randomUUID() : (Date.now() + "_" + Math.random()));
+    localStorage.setItem(LS_DEVICE, v);
+  }
+  return v;
+}
+function calcRemainingText(expiresAt) {
+  if (!expiresAt) return "";
+  const exp = new Date(expiresAt).getTime();
+  const now = Date.now();
+  const diff = exp - now;
+  const days = Math.ceil(diff / 86400000);
+  if (!Number.isFinite(days)) return "";
+  if (days <= 0) return "（期限切れ）";
+  return `（残り${days}日）`;
+}
+
+function setLocked(isLocked, info = {}) {
+  document.body.classList.toggle("locked", isLocked);
+
+  const gate = document.getElementById("licenseGate");
+  const app = document.getElementById("appContainer");
+
+  const exp = info.expiresAt || localStorage.getItem(LS_EXPIRES) || "";
+  const remain = calcRemainingText(exp);
+
+  // Status text
+  const st = $("licenseStatus");
+  if (st) {
+    if (isLocked) {
+      st.textContent = "🔒 未認証";
+    } else {
+      st.textContent = exp
+        ? `✅ 認証済み（期限: ${exp.slice(0,10)}）${remain}`
+        : `✅ 認証済み${remain}`;
+    }
+  }
+
+  // Animate UI swap (no reload)
+  const D = 260; // ms
+  if (isLocked) {
+    // Show gate
+    if (gate) {
+      gate.style.display = "flex";
+      gate.classList.remove("fade-out");
+      gate.style.opacity = "0";
+      gate.style.transform = "translateY(8px)";
+      requestAnimationFrame(() => gate.classList.add("fade-in"));
+    }
+    // Hide app
+    if (app) {
+      app.classList.remove("fade-in");
+      app.classList.add("fade-out");
+      setTimeout(() => { app.style.display = "none"; }, D);
+    }
+  } else {
+    // Show app
+    if (app) {
+      app.style.display = "block";
+      app.classList.remove("fade-out");
+      app.style.opacity = "0";
+      app.style.transform = "translateY(8px)";
+      requestAnimationFrame(() => app.classList.add("fade-in"));
+    }
+    // Hide gate
+    if (gate) {
+      gate.classList.remove("fade-in");
+      gate.classList.add("fade-out");
+      setTimeout(() => { gate.style.display = "none"; }, D);
+    }
+  }
+}
+
+  function openLicenseModal(msg="") {
+    // Gate-first: show full-screen gate (no other UI)
+    const gm = document.getElementById("licenseMsg_gate");
+    if (gm) gm.textContent = msg;
+    setLocked(true);
+    const gi = document.getElementById("licenseKeyInput_gate");
+    if (gi) gi.focus();
+    // keep modal for compatibility, but don\'t rely on it
+    if ($("licenseMsg")) $("licenseMsg").textContent = msg;
+  }
+
+  function closeLicenseModal() {
+    $("licenseModal").style.display = "none";
+    $("licenseModal").setAttribute("aria-hidden", "true");
+    $("licenseMsg").textContent = "";
+  }
+
+ async function activateLicense(key) {
+  const deviceId = getOrCreateDeviceId();
+  const res = await fetch(`${LICENSE_API_BASE}/api/activate`, {
+    method: "POST",
+    headers: { "Content-Type":"application/json" },
+    body: JSON.stringify({ key, deviceId })
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || !data.ok) throw new Error(data.message || "activate_failed");
+
+  // keyを保存（次回以降の自動認証に使う）
+  localStorage.setItem(LS_KEY, key);
+
+  // すぐ期限も取りに行く
+  const chk = await checkLicense();
+  if (!chk.ok) throw new Error(chk.reason || "check_failed_after_activate");
+  return chk;
+}
+
+async function checkLicense() {
+  const key = localStorage.getItem(LS_KEY);
+  if (!key) return { ok:false, reason:"no_key" };
+
+  const deviceId = getOrCreateDeviceId();
+  const res = await fetch(`${LICENSE_API_BASE}/api/check`, {
+    method: "POST",
+    headers: { "Content-Type":"application/json" },
+    body: JSON.stringify({ key, deviceId })
+  });
+
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || !data.ok) {
+    // 期限切れや不一致なら、必要ならここで消してもOK
+    // localStorage.removeItem(LS_KEY);
+    return { ok:false, reason:data.message || "invalid" };
+  }
+
+  // Workersは { ok:true, expires:"..." } を返す
+  const expiresAt = data.expiresAt || data.expires || "";
+  localStorage.setItem(LS_EXPIRES, expiresAt);
+
+  return { ok:true, expiresAt };
+}
+
+
+  // ---- default templates
+  const defaultTemplates = [
+    {
+      id: "t1",
+      name: "悩み→解決→行動",
+      text:
+`{{target}}。
+
+{{pain}}
+{{solution}}
+
+{{benefit}}{{cta}}
+{{tag}}`
+    },
+    {
+      id: "t2",
+      name: "共感→気づき→提案",
+      text:
+`「{{pain}}」って{{target}}ほど刺さる。
+
+実は{{insight}}。
+だから{{proposal}}。
+
+{{cta}}
+{{tag}}`
+    },
+    {
+      id: "t3",
+      name: "実績→理由→募集",
+      text:
+`{{result}}しました。
+
+理由はシンプルで、{{reason}}。
+同じように{{target}}を変えたい人は{{offer}}。
+
+{{cta}}
+{{tag}}`
+    }
+  ];
+
+  // ---- storage
+  const LS_TPL_KEY = "x_post_maker_templates_v1";
+  const LS_LAST = "x_post_maker_last_template_v1";
+
+  function loadTemplates() {
+    const raw = localStorage.getItem(LS_TPL_KEY);
+    if (!raw) return [...defaultTemplates];
+    try {
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) && parsed.length ? parsed : [...defaultTemplates];
+    } catch {
+      return [...defaultTemplates];
+    }
+  }
+
+  function saveTemplates(list) {
+    localStorage.setItem(LS_TPL_KEY, JSON.stringify(list));
+  }
+
+  let templates = loadTemplates();
+
+
+  // ---- Buzzword dictionary (plain localStorage)
+  const LS_BUZZ = "buzzwords_list_v1";
+  function loadBuzzwords() {
+    try {
+      const s = localStorage.getItem(LS_BUZZ) || "";
+      return s.split("\n").map(x => x.trim()).filter(Boolean);
+    } catch { return []; }
+  }
+  function saveBuzzwordsFromUI() {
+    const raw = $("buzzwords").value || "";
+    localStorage.setItem(LS_BUZZ, raw);
+    return loadBuzzwords();
+  }
+  function getBuzzRandom() {
+    const list = loadBuzzwords();
+    if (!list.length) return "";
+    return list[Math.floor(Math.random() * list.length)];
+  }
+
+
+  // ---- UI: template select
+  function refreshTemplateSelect(selectedId) {
+    const sel = $("templateSelect");
+    sel.innerHTML = "";
+    templates.forEach(t => {
+      const opt = document.createElement("option");
+      opt.value = t.id;
+      opt.textContent = t.name;
+      sel.appendChild(opt);
+    });
+    const last = localStorage.getItem(LS_LAST);
+    sel.value = selectedId || last || templates[0]?.id;
+  }
+
+  function currentTemplate() {
+    const id = $("templateSelect").value;
+    return templates.find(t => t.id === id) || templates[0];
+  }
+
+  // ---- vars extraction
+  function extractVars(text) {
+    const re = /\{\{\s*([a-zA-Z0-9_\-ぁ-んァ-ヶ一-龠]+)\s*\}\}/g;
+    const set = new Set();
+    let m;
+    while ((m = re.exec(text)) !== null) set.add(m[1]);
+    return [...set];
+  }
+
+  // Keep var candidates in memory + LS
+  const VAR_KEY = "x_post_maker_vars_v1";
+  function loadVarBank() {
+    try {
+      return JSON.parse(localStorage.getItem(VAR_KEY) || "{}") || {};
+    } catch { return {}; }
+  }
+  function saveVarBank(bank) {
+    localStorage.setItem(VAR_KEY, JSON.stringify(bank));
+  }
+  let varBank = loadVarBank();
+
+  function renderVars() {
+    const text = $("templateText").value;
+    const vars = extractVars(text);
+    const area = $("varsArea");
+    area.innerHTML = "";
+
+    if (vars.length === 0) {
+      area.innerHTML = `<div class="muted">テンプレ内に {{変数}} がありません。追加すると入力欄が出ます。</div>`;
+      return;
+    }
+
+    vars.forEach(v => {
+      const wrap = document.createElement("div");
+      wrap.style.marginTop = "10px";
+
+      const label = document.createElement("label");
+      label.textContent = `{{${v}}} の候補`;
+      wrap.appendChild(label);
+
+      const ta = document.createElement("textarea");
+      ta.id = `var_${v}`;
+      ta.placeholder = "1行=1候補。空行は無視";
+      ta.value = (varBank[v] || []).join("\n");
+      ta.addEventListener("input", () => {
+        varBank[v] = ta.value.split("\n").map(s => s.trim()).filter(Boolean);
+        saveVarBank(varBank);
+      });
+      ta.style.minHeight = "110px";
+      wrap.appendChild(ta);
+
+      area.appendChild(wrap);
+    });
+  }
+
+  // ---- generation
+  function cartesian(arrays) {
+    // arrays: [ [a,b], [c,d,e], ... ]
+    let res = [[]];
+    for (const arr of arrays) {
+      const next = [];
+      for (const r of res) for (const x of arr) next.push([...r, x]);
+      res = next;
+      if (res.length > 10000) break; // guard
+    }
+    return res;
+  }
+
+  function countXChars(text) {
+    // 簡易カウント（URL短縮などは考慮しない）
+    return (text || "").length;
+  }
+
+  function renderOutput(posts) {
+    LAST_POSTS = posts.slice();
+    const out = $("output");
+    out.innerHTML = "";
+    let over = 0;
+    let maxLen = 0;
+
+    posts.forEach((p, idx) => {
+      const div = document.createElement("div");
+      div.className = "item";
+
+      const pre = document.createElement("pre");
+      pre.textContent = p;
+
+      const len = countXChars(p);
+      maxLen = Math.max(maxLen, len);
+      const remain = 280 - len;
+      if (remain < 0) over++;
+
+      const meta = document.createElement("div");
+      meta.className = "meta";
+      const b1 = document.createElement("span");
+      b1.className = "badge" + (remain < 0 ? " bad" : "");
+      b1.textContent = `${len}文字（残り${remain}）`;
+      const b2 = document.createElement("span");
+      b2.className = "badge";
+      b2.textContent = `#${idx+1}`;
+      meta.appendChild(b2);
+      meta.appendChild(b1);
+
+      const btn = document.createElement("button");
+      btn.textContent = "コピー";
+      btn.className = "secondary";
+      btn.style.marginTop = "8px";
+      btn.addEventListener("click", async () => {
+        try {
+          await navigator.clipboard.writeText(p);
+          btn.textContent = "コピーした";
+          setTimeout(()=> btn.textContent="コピー", 900);
+        } catch {
+          // fallback
+          const ta = document.createElement("textarea");
+          ta.value = p;
+          document.body.appendChild(ta);
+          ta.select();
+          document.execCommand("copy");
+          document.body.removeChild(ta);
+          btn.textContent = "コピーした";
+          setTimeout(()=> btn.textContent="コピー", 900);
+        }
+      });
+
+      div.appendChild(pre);
+      div.appendChild(meta);
+      div.appendChild(btn);
+      out.appendChild(div);
+    });
+
+    const info = $("xCharInfo");
+    if (info) {
+      const warn = over ? ` / 280超え: ${over}件` : "";
+      info.textContent = posts.length ? `最大文字数: ${maxLen}文字${warn}` : "";
+    }
+  }
+
+  function generatePosts({ shuffle=false } = {}) {
+    const tpl = $("templateText").value;
+    const vars = extractVars(tpl);
+    const maxGen = Math.max(1, Math.min(200, parseInt($("maxGen").value || "30", 10)));
+
+    // collect candidates
+    const candidates = {};
+    for (const v of vars) {
+      const ta = $(`var_${v}`);
+      const list = (ta?.value || "")
+        .split("\n").map(s => s.trim()).filter(Boolean);
+      candidates[v] = list;
+    }
+
+    // validate
+    const missing = vars.filter(v => !candidates[v] || candidates[v].length === 0);
+    if (missing.length) {
+      $("stats").textContent = `未入力の変数があります：${missing.map(v=>`{{${v}}}`).join(", ")}`;
+      renderOutput([]);
+      return;
+    }
+
+    // build combinations
+    const arrays = vars.map(v => candidates[v]);
+    let combos = cartesian(arrays); // list of arrays with chosen values
+    // convert to posts
+    let posts = combos.map(choiceArr => {
+      let s = tpl;
+      vars.forEach((v, i) => {
+        // replace all occurrences
+        const re = new RegExp("\\{\\{\\s*" + v.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\s*\\}\\}", "g");
+        s = s.replace(re, choiceArr[i]);
+      });
+      // buzzword placeholder
+      s = s.replace(/\{\{\s*buzz\s*\}\}/g, () => getBuzzRandom());
+      return s.trim();
+    });
+
+    // optional shuffle
+    if (shuffle) {
+      for (let i = posts.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [posts[i], posts[j]] = [posts[j], posts[i]];
+      }
+    }
+
+    posts = posts.slice(0, maxGen);
+    $("stats").textContent = `生成: ${posts.length}件 / 組み合わせ総数(概算): ${combos.length}件`;
+    renderOutput(posts);
+  }
+
+  // ---- copy all
+  async function copyAll() {
+    const items = [...$("output").querySelectorAll("pre")].map(p => p.textContent);
+    const all = items.join("\n\n---\n\n");
+    if (!all.trim()) return;
+    try {
+      await navigator.clipboard.writeText(all);
+      $("stats").textContent = "全部コピーしました（区切り：---）";
+    } catch {
+      const ta = document.createElement("textarea");
+      ta.value = all;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand("copy");
+      document.body.removeChild(ta);
+      $("stats").textContent = "全部コピーしました（区切り：---）";
+    }
+  }
+
+  // ---- template CRUD
+  function loadTemplateToEditor(id) {
+    const t = templates.find(x => x.id === id) || templates[0];
+    $("templateText").value = t.text;
+    localStorage.setItem(LS_LAST, t.id);
+    renderVars();
+    generatePosts({ shuffle: false });
+  }
+
+  function saveCurrentTemplate() {
+    const id = $("templateSelect").value;
+    let t = templates.find(x => x.id === id);
+    if (!t) return;
+
+    const name = prompt("テンプレ名（一覧表示用）", t.name) ?? t.name;
+    t.name = name.trim() || t.name;
+    t.text = $("templateText").value;
+
+    saveTemplates(templates);
+    refreshTemplateSelect(t.id);
+    renderVars();
+    $("stats").textContent = "テンプレを保存しました";
+  }
+
+  function newTemplate() {
+    const name = prompt("新規テンプレ名", "新しいテンプレ") || "新しいテンプレ";
+    const id = "t" + Math.random().toString(16).slice(2);
+    const t = { id, name, text: `{{target}}へ。\n{{pain}}\n\n{{cta}}\n{{tag}}` };
+    templates.unshift(t);
+    saveTemplates(templates);
+    refreshTemplateSelect(t.id);
+    loadTemplateToEditor(t.id);
+    $("stats").textContent = "新規テンプレを作成しました";
+  }
+
+  function deleteTemplate() {
+    const id = $("templateSelect").value;
+    if (templates.length <= 1) {
+      $("stats").textContent = "テンプレは最低1つ必要です。";
+      return;
+    }
+    const t = templates.find(x => x.id === id);
+    if (!confirm(`「${t?.name || "このテンプレ"}」を削除しますか？`)) return;
+    templates = templates.filter(x => x.id !== id);
+    saveTemplates(templates);
+    refreshTemplateSelect(templates[0].id);
+    loadTemplateToEditor(templates[0].id);
+    $("stats").textContent = "削除しました";
+  }
+
+  // ---- export/import
+  function exportJSON() {
+    const payload = { templates, varBank };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "x_post_maker_backup.json";
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function importJSON(file) {
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const obj = JSON.parse(reader.result);
+        if (obj.templates && Array.isArray(obj.templates)) templates = obj.templates;
+        if (obj.varBank && typeof obj.varBank === "object") varBank = obj.varBank;
+
+        saveTemplates(templates);
+        saveVarBank(varBank);
+        refreshTemplateSelect(templates[0]?.id);
+        loadTemplateToEditor($("templateSelect").value);
+        $("stats").textContent = "読み込み完了";
+      } catch (e) {
+        $("stats").textContent = "読み込み失敗：JSONが壊れてるか形式が違います";
+      }
+    };
+    reader.readAsText(file);
+  }
+
+  // ---- events
+  // ---- License init
+  // 起動時にチェックして、未認証ならロック（カード一式が操作できなくなる）
+  setLocked(true);
+  try {
+    const r = await checkLicense();
+    if (r.ok) {
+      setLocked(false, { expiresAt: r.expiresAt });
+    } else {
+      setLocked(true);
+    }
+  } catch {
+    setLocked(true);
+  }
+
+  $("openLicenseBtn").addEventListener("click", () => openLicenseModal());
+  $("closeLicenseBtn").addEventListener("click", closeLicenseModal);
+
+    // Gate UI (full screen) bindings
+  const gateInput = document.getElementById("licenseKeyInput_gate");
+  const gateMsg = document.getElementById("licenseMsg_gate");
+  const gateBtn = document.getElementById("activateBtn_gate");
+  if (gateBtn && gateInput) {
+    const doGateActivate = async () => {
+      const key = (gateInput.value || "").trim().toUpperCase();
+      gateMsg.textContent = "認証中...";
+      try {
+        const r = await activateLicense(key);
+        setLocked(false, { expiresAt: r.expiresAt });
+        gateMsg.textContent = "OK（認証済み）";
+      } catch (e) {
+        const msg = String(e?.message || e);
+        if (msg.includes("device_mismatch")) gateMsg.textContent = "このキーは別端末で使用中です（端末リセットが必要）";
+        else if (msg.includes("expired")) gateMsg.textContent = "期限切れです";
+        else if (msg.includes("revoked")) gateMsg.textContent = "失効済みです";
+        else if (msg.includes("invalid") || msg.includes("bad_request")) gateMsg.textContent = "キーが無効です";
+        else gateMsg.textContent = "認証失敗：" + msg;
+        setLocked(true);
+      }
+    };
+    gateBtn.addEventListener("click", doGateActivate);
+    gateInput.addEventListener("keydown", (ev) => { if (ev.key === "Enter") doGateActivate(); });
+  }
+
+$("activateBtn").addEventListener("click", async () => {
+    const key = ($("licenseKeyInput").value || "").trim().toUpperCase();
+    $("licenseMsg").textContent = "認証中...";
+    try {
+      const r = await activateLicense(key);
+      setLocked(false, { expiresAt: r.expiresAt });
+      $("licenseMsg").textContent = "OK（認証済み）";
+      setTimeout(closeLicenseModal, 500);
+    } catch (e) {
+      const msg = String(e?.message || e);
+      if (msg.includes("device_mismatch")) {
+        $("licenseMsg").textContent = "このキーは別端末で使用中です（端末リセットが必要）";
+      } else if (msg.includes("expired")) {
+        $("licenseMsg").textContent = "期限切れです";
+      } else if (msg.includes("revoked")) {
+        $("licenseMsg").textContent = "失効済みです";
+      } else if (msg.includes("invalid key")) {
+        $("licenseMsg").textContent = "キーが無効です";
+      } else {
+        $("licenseMsg").textContent = "認証失敗：" + msg;
+      }
+      setLocked(true);
+    }
+  });
+
+
+  refreshTemplateSelect();
+  loadTemplateToEditor($("templateSelect").value);
+
+  $("templateSelect").addEventListener("change", (e) => loadTemplateToEditor(e.target.value));
+  $("templateText").addEventListener("input", () => { renderVars(); });
+
+  $("generateBtn").addEventListener("click", () => generatePosts({ shuffle:false }));
+  $("shuffleBtn").addEventListener("click", () => generatePosts({ shuffle:true }));
+  $("copyAllBtn").addEventListener("click", copyAll);
+
+  $("saveTemplateBtn").addEventListener("click", saveCurrentTemplate);
+  $("newTemplateBtn").addEventListener("click", newTemplate);
+  $("deleteTemplateBtn").addEventListener("click", deleteTemplate);
+
+
+  // ---- buzzword UI
+  $("buzzwords").value = localStorage.getItem(LS_BUZZ) || "";
+  $("saveBuzzBtn").addEventListener("click", () => {
+    saveBuzzwordsFromUI();
+    alert("バズワード辞書を保存しました");
+  });
+  $("clearBuzzBtn").addEventListener("click", () => {
+    if (!confirm("辞書をクリアしますか？")) return;
+    $("buzzwords").value = "";
+    saveBuzzwordsFromUI();
+  });
+  $("insertBuzzBtn").addEventListener("click", () => {
+    const bw = getBuzzRandom();
+    if (!bw) { alert("辞書が空です"); return; }
+    const active = document.activeElement;
+    // templateText or any textarea in varsArea
+    const ta = (active && active.tagName === "TEXTAREA") ? active : $("templateText");
+    const start = ta.selectionStart ?? ta.value.length;
+    const end = ta.selectionEnd ?? ta.value.length;
+    ta.value = ta.value.slice(0, start) + bw + ta.value.slice(end);
+    ta.focus();
+    const pos = start + bw.length;
+    ta.setSelectionRange(pos, pos);
+  });
+
+  $("exportBtn").addEventListener("click", exportJSON);
+  $("importBtn").addEventListener("click", () => $("importFile").click());
+  $("importFile").addEventListener("change", (e) => {
+    const f = e.target.files?.[0];
+    if (f) importJSON(f);
+    e.target.value = "";
+  });
+
+  // ---- Tabs (pseudo-pages)
+  const tabs = document.getElementById("tabs");
+  function setPage(pageId) {
+    document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
+    const page = document.getElementById(pageId);
+    if (page) page.classList.add("active");
+
+    document.querySelectorAll(".tabbtn").forEach(b => b.classList.toggle("active", b.dataset.page === pageId));
+
+    const sticky = document.getElementById("stickybar");
+    const isMain = pageId === "pageMain";
+    if (sticky) sticky.style.display = isMain ? "block" : "none";
+    document.body.classList.toggle("hasSticky", isMain);
+  }
+
+  if (tabs) {
+    tabs.addEventListener("click", (e) => {
+      const b = e.target.closest(".tabbtn");
+      if (!b) return;
+      setPage(b.dataset.page);
+    });
+  }
+
+  // ---- Sticky bar wire-up (mirrors main buttons)
+  const stickyShuffleBtn = document.getElementById("stickyShuffleBtn");
+  const stickyGenerateBtn = document.getElementById("stickyGenerateBtn");
+  const stickyCopyAllBtn = document.getElementById("stickyCopyAllBtn");
+  if (stickyShuffleBtn) stickyShuffleBtn.addEventListener("click", () => $("shuffleBtn")?.click());
+  if (stickyGenerateBtn) stickyGenerateBtn.addEventListener("click", () => $("generateBtn")?.click());
+  if (stickyCopyAllBtn) stickyCopyAllBtn.addEventListener("click", () => $("copyAllBtn")?.click());
+
+  // ---- Accounts (plain localStorage, multiple)
+  const ACC_LS = "x_accounts_plain_v1";
+  let accEditingId = null;
+
+  const accEls = {
+    label: $("accLabel"),
+    xid: $("accXId"),
+    xpw: $("accXPw"),
+    mail: $("accMail"),
+    mailpw: $("accMailPw"),
+    mailpath: $("accMailPath"),
+    note: $("accNote"),
+    save: $("accSaveBtn"),
+    clear: $("accClearBtn"),
+    tbody: $("accTbody"),
+    count: $("accCount"),
+    hint: $("accEditHint"),
+    exportBtn: $("accExportBtn"),
+    importBtn: $("accImportBtn"),
+    importFile: $("accImportFile"),
+    delAll: $("accDeleteAllBtn"),
+  };
+
+  function loadAccounts() {
+    try {
+      const raw = localStorage.getItem(ACC_LS);
+      if (!raw) return [];
+      const arr = JSON.parse(raw);
+      return Array.isArray(arr) ? arr : [];
+    } catch { return []; }
+  }
+  function saveAccounts(arr) {
+    localStorage.setItem(ACC_LS, JSON.stringify(arr));
+  }
+  function uid() {
+    return (crypto.randomUUID ? crypto.randomUUID() : (String(Math.random()).slice(2) + Date.now()));
+  }
+  function mask(s) {
+    if (!s) return "";
+    return "•".repeat(Math.min(8, String(s).length));
+  }
+  async function copyToClipboard(text) {
+    try {
+      await navigator.clipboard.writeText(text);
+      alert("コピーしました");
+    } catch {
+      // fallback
+      const ta = document.createElement("textarea");
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand("copy");
+      ta.remove();
+      alert("コピーしました");
+    }
+  }
+
+  function accClearForm() {
+    accEditingId = null;
+    accEls.label.value = "";
+    accEls.xid.value = "";
+    accEls.xpw.value = "";
+    accEls.mail.value = "";
+    accEls.mailpw.value = "";
+    accEls.mailpath.value = "";
+    accEls.note.value = "";
+    if (accEls.hint) accEls.hint.textContent = "";
+  }
+
+  function renderAccounts() {
+    const arr = loadAccounts();
+    if (accEls.tbody) accEls.tbody.innerHTML = "";
+
+    arr.forEach(a => {
+      const tr = document.createElement("tr");
+
+      const td1 = document.createElement("td");
+      td1.innerHTML = `<b>${(a.label||"").replaceAll("<","&lt;")}</b><br><small>${(a.xid||"")}</small>`;
+      const td2 = document.createElement("td");
+      td2.innerHTML = `<small>${(a.mail||"")}</small>`;
+
+      const td3 = document.createElement("td");
+      td3.className = "btns";
+      td3.style.justifyContent = "flex-start";
+      td3.style.flexWrap = "wrap";
+
+      const mkBtn = (txt, cls="secondary") => {
+        const b = document.createElement("button");
+        b.type = "button";
+        b.textContent = txt;
+        b.className = cls;
+        return b;
+      };
+
+      const bEdit = mkBtn("編集");
+      bEdit.addEventListener("click", () => {
+        accEditingId = a.id;
+        accEls.label.value = a.label || "";
+        accEls.xid.value = a.xid || "";
+        accEls.xpw.value = a.xpw || "";
+        accEls.mail.value = a.mail || "";
+        accEls.mailpw.value = a.mailpw || "";
+        accEls.mailpath.value = a.mailpath || "";
+        accEls.note.value = a.note || "";
+        if (accEls.hint) accEls.hint.textContent = "編集モード：保存で更新されます（ID: " + a.id + "）";
+      });
+
+      const bDel = mkBtn("削除", "danger");
+      bDel.addEventListener("click", () => {
+        if (!confirm("このアカウントを削除しますか？")) return;
+        const arr2 = loadAccounts().filter(x => x.id !== a.id);
+        saveAccounts(arr2);
+        if (accEditingId === a.id) accClearForm();
+        renderAccounts();
+      });
+
+      const bCopyId = mkBtn("IDコピー");
+      bCopyId.addEventListener("click", () => copyToClipboard(a.xid || ""));
+
+      const bCopyPw = mkBtn("Xパスコピー");
+      bCopyPw.addEventListener("click", () => copyToClipboard(a.xpw || ""));
+
+      const bCopyMail = mkBtn("メアドコピー");
+      bCopyMail.addEventListener("click", () => copyToClipboard(a.mail || ""));
+
+      const bCopyMailPw = mkBtn("メアドパスコピー");
+      bCopyMailPw.addEventListener("click", () => copyToClipboard(a.mailpw || ""));
+
+      const bCopyAll = mkBtn("全部コピー");
+      bCopyAll.addEventListener("click", () => {
+        const all = [
+          `label: ${a.label||""}`,
+          `xid: ${a.xid||""}`,
+          `xpw: ${a.xpw||""}`,
+          `mail: ${a.mail||""}`,
+          `mailpw: ${a.mailpw||""}`,
+          `mailpath: ${a.mailpath||""}`,
+          `note: ${a.note||""}`,
+        ].join("\n");
+        copyToClipboard(all);
+      });
+
+      td3.append(bEdit, bCopyId, bCopyPw, bCopyMail, bCopyMailPw, bCopyAll, bDel);
+
+      tr.append(td1, td2, td3);
+      accEls.tbody.appendChild(tr);
+    });
+
+    if (accEls.count) accEls.count.textContent = `保存数：${arr.length}`;
+  }
+
+  if (accEls.save) accEls.save.addEventListener("click", () => {
+    const label = accEls.label.value.trim();
+    const xid = accEls.xid.value.trim();
+    const xpw = accEls.xpw.value;
+    const mail = accEls.mail.value.trim();
+    const mailpw = accEls.mailpw.value;
+    const mailpath = accEls.mailpath.value.trim();
+    const note = accEls.note.value;
+
+    const arr = loadAccounts();
+    if (accEditingId) {
+      const idx = arr.findIndex(x => x.id === accEditingId);
+      if (idx >= 0) {
+        arr[idx] = { ...arr[idx], label, xid, xpw, mail, mailpw, mailpath, note, updatedAt: new Date().toISOString() };
+      }
+    } else {
+      arr.unshift({ id: uid(), label, xid, xpw, mail, mailpw, mailpath, note, createdAt: new Date().toISOString() });
+    }
+    saveAccounts(arr);
+    accClearForm();
+    renderAccounts();
+    alert("保存しました");
+  });
+
+  if (accEls.clear) accEls.clear.addEventListener("click", accClearForm);
+
+  if (accEls.exportBtn) accEls.exportBtn.addEventListener("click", () => {
+    const data = localStorage.getItem(ACC_LS) || "[]";
+    const blob = new Blob([data], { type: "application/json" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "x_accounts.json";
+    a.click();
+    URL.revokeObjectURL(a.href);
+  });
+
+  if (accEls.importBtn && accEls.importFile) {
+    accEls.importBtn.addEventListener("click", () => accEls.importFile.click());
+    accEls.importFile.addEventListener("change", async (e) => {
+      const f = e.target.files?.[0];
+      if (!f) return;
+      const txt = await f.text();
+      try {
+        const arr = JSON.parse(txt);
+        if (!Array.isArray(arr)) throw new Error("invalid");
+        // ensure ids
+        const normalized = arr.map(a => ({
+          id: a.id || uid(),
+          label: a.label || "",
+          xid: a.xid || "",
+          xpw: a.xpw || "",
+          mail: a.mail || "",
+          mailpw: a.mailpw || "",
+          mailpath: a.mailpath || "",
+          note: a.note || "",
+          createdAt: a.createdAt || new Date().toISOString(),
+        }));
+        saveAccounts(normalized);
+        renderAccounts();
+        alert("インポートしました");
+      } catch {
+        alert("JSONが不正です");
+      } finally {
+        accEls.importFile.value = "";
+      }
+    });
+  }
+
+  if (accEls.delAll) accEls.delAll.addEventListener("click", () => {
+    if (!confirm("保存しているアカウントを全削除しますか？")) return;
+    localStorage.removeItem(ACC_LS);
+    accClearForm();
+    renderAccounts();
+  });
+
+  // 初期表示
+  renderAccounts();
+  setPage("pageMain");
+
+})();
+
+
+
+
+// ===== Stable Activate Bind (Clean Version) =====
+function bindActivateButtons() {
+  const btn1 = document.getElementById("activateBtn");
+  const btn2 = document.getElementById("activateBtn_gate");
+
+  async function handleActivate() {
+    try {
+      const input =
+        document.getElementById("licenseKeyInput") ||
+        document.getElementById("licenseKeyInput_gate");
+
+      if (!input) return;
+
+      const key = (input.value || "").trim().toUpperCase();
+      if (!key) return;
+
+      const LS_KEY = "license_key";
+      const LS_DEVICE = "license_device_id";
+      const LS_EXPIRES = "license_expires_at";
+
+      let deviceId = localStorage.getItem(LS_DEVICE);
+      if (!deviceId) {
+        deviceId = crypto.randomUUID
+          ? crypto.randomUUID()
+          : Date.now() + "_" + Math.random();
+        localStorage.setItem(LS_DEVICE, deviceId);
+      }
+
+      // 1) activate
+      const res = await fetch(`${LICENSE_API_BASE}/api/activate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ key, deviceId }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.ok) {
+        alert("認証失敗: " + (data.message || "error"));
+        return;
+      }
+
+      // 2) save key for auto-check next time
+      localStorage.setItem(LS_KEY, key);
+
+      // 3) check to get expires
+      const res2 = await fetch(`${LICENSE_API_BASE}/api/check`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ key, deviceId }),
+      });
+
+      const data2 = await res2.json().catch(() => ({}));
+      if (!res2.ok || !data2.ok) {
+        // activateは通ってるので、最悪UIだけ解除
+        setLocked(false);
+        return;
+      }
+
+      const expiresAt = data2.expiresAt || data2.expires || "";
+      if (expiresAt) localStorage.setItem(LS_EXPIRES, expiresAt);
+
+      // 4) unlock without reload
+      setLocked(false, { expiresAt });
+    } catch (e) {
+      alert("エラー: " + e.message);
+    }
+  }
+
+  if (btn1) {
+    btn1.onclick = null;
+    btn1.addEventListener("click", handleActivate);
+  }
+  if (btn2) {
+    btn2.onclick = null;
+    btn2.addEventListener("click", handleActivate);
+  }
+}
+
+bindActivateButtons();
+// ===== End Stable Activate Bind =====
+
+</script>
+</body>
+</html>
