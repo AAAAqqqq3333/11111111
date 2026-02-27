@@ -107,7 +107,7 @@
 
   <div class="topbar">
     <h1>SNS Hyper Core</h1>
-    <span class="pill">ローカルHTMLで動作 / コピペOK</span>
+   <span class="pill" id="localHint">ローカルHTMLで動作 / コピペOK</span>
   
     <div class="lockbar">
       <span class="pill" id="licenseStatus">🔒 未認証</span>
@@ -352,9 +352,9 @@
   // TODO: あなたのWorkers URLに差し替え
   const LICENSE_API_BASE = "https://xpost-core.ssssqqqq255.workers.dev";
 
-  const LS_TOKEN = "license_token";
-  const LS_DEVICE = "license_device_id";
-  const LS_EXPIRES = "license_expires_at";
+  const LS_KEY = "license_key";
+const LS_DEVICE = "license_device_id";
+const LS_EXPIRES = "license_expires_at";
 
   function getOrCreateDeviceId() {
     let v = localStorage.getItem(LS_DEVICE);
@@ -364,25 +364,48 @@
     }
     return v;
   }
+function calcRemainingText(expiresAt) {
+  if (!expiresAt) return "";
+  const exp = new Date(expiresAt).getTime();
+  const now = Date.now();
+  const diff = exp - now;
+  const days = Math.ceil(diff / 86400000);
+  if (!Number.isFinite(days)) return "";
+  if (days <= 0) return "（期限切れ）";
+  return `（残り${days}日）`;
+}
 
-  function setLocked(isLocked, info = {}) {
-    document.body.classList.toggle("locked", isLocked);
-    // Hide everything until licensed
-    const gate = document.getElementById("licenseGate");
-    const app = document.getElementById("appContainer");
-    if (gate) gate.style.display = isLocked ? "flex" : "none";
-    if (app) app.style.display = isLocked ? "none" : "block";
+function setLocked(isLocked, info = {}) {
+  document.body.classList.toggle("locked", isLocked);
 
-    const st = $("licenseStatus");
-    if (st) {
-      if (isLocked) {
-        st.textContent = "🔒 未認証";
-      } else {
-        const exp = info.expiresAt || localStorage.getItem(LS_EXPIRES) || "";
-        st.textContent = exp ? `✅ 認証済み（期限: ${exp.slice(0,10)}）` : "✅ 認証済み";
-      }
+  // Hide everything until licensed
+  const gate = document.getElementById("licenseGate");
+  const app = document.getElementById("appContainer");
+  if (gate) gate.style.display = isLocked ? "flex" : "none";
+  if (app) app.style.display = isLocked ? "none" : "block";
+
+  const exp = info.expiresAt || localStorage.getItem(LS_EXPIRES) || "";
+  const remain = calcRemainingText(exp);
+
+  const st = $("licenseStatus");
+  if (st) {
+    if (isLocked) {
+      st.textContent = "🔒 未認証";
+    } else {
+      st.textContent = exp
+        ? `✅ 認証済み（期限: ${exp.slice(0,10)}）${remain}`
+        : `✅ 認証済み${remain}`;
     }
   }
+
+  // 「ローカルHTMLで動作 / コピペOK」に残りも出す
+  const lh = document.getElementById("localHint");
+  if (lh) {
+    lh.textContent = isLocked
+      ? "ローカルHTMLで動作 / コピペOK"
+      : `ローカルHTMLで動作 / コピペOK ${remain}`.trim();
+  }
+}
 
   function openLicenseModal(msg="") {
     // Gate-first: show full-screen gate (no other UI)
@@ -401,39 +424,49 @@
     $("licenseMsg").textContent = "";
   }
 
-  async function activateLicense(key) {
-    const deviceId = getOrCreateDeviceId();
-    const res = await fetch(`${LICENSE_API_BASE}/api/activate`, {
-      method: "POST",
-      headers: { "Content-Type":"application/json" },
-      body: JSON.stringify({ key, deviceId })
-    });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok || !data.ok) throw new Error(data.message || "activate_failed");
-    localStorage.setItem(LS_TOKEN, data.token);
-    localStorage.setItem(LS_EXPIRES, data.expiresAt || "");
-    return data;
+ async function activateLicense(key) {
+  const deviceId = getOrCreateDeviceId();
+  const res = await fetch(`${LICENSE_API_BASE}/api/activate`, {
+    method: "POST",
+    headers: { "Content-Type":"application/json" },
+    body: JSON.stringify({ key, deviceId })
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || !data.ok) throw new Error(data.message || "activate_failed");
+
+  // keyを保存（次回以降の自動認証に使う）
+  localStorage.setItem(LS_KEY, key);
+
+  // すぐ期限も取りに行く
+  const chk = await checkLicense();
+  if (!chk.ok) throw new Error(chk.reason || "check_failed_after_activate");
+  return chk;
+}
+
+async function checkLicense() {
+  const key = localStorage.getItem(LS_KEY);
+  if (!key) return { ok:false, reason:"no_key" };
+
+  const deviceId = getOrCreateDeviceId();
+  const res = await fetch(`${LICENSE_API_BASE}/api/check`, {
+    method: "POST",
+    headers: { "Content-Type":"application/json" },
+    body: JSON.stringify({ key, deviceId })
+  });
+
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || !data.ok) {
+    // 期限切れや不一致なら、必要ならここで消してもOK
+    // localStorage.removeItem(LS_KEY);
+    return { ok:false, reason:data.message || "invalid" };
   }
 
-  async function checkLicense() {
-    const token = localStorage.getItem(LS_TOKEN);
-    if (!token) return { ok:false, reason:"no_token" };
-    const deviceId = getOrCreateDeviceId();
+  // Workersは { ok:true, expires:"..." } を返す
+  const expiresAt = data.expiresAt || data.expires || "";
+  localStorage.setItem(LS_EXPIRES, expiresAt);
 
-    const res = await fetch(`${LICENSE_API_BASE}/api/check`, {
-      method: "POST",
-      headers: {
-        "Content-Type":"application/json",
-        "Authorization": `Bearer ${token}`,
-      },
-      body: JSON.stringify({ deviceId })
-    });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok || !data.ok) return { ok:false, reason:data.message || "invalid" };
-
-    localStorage.setItem(LS_EXPIRES, data.expiresAt || "");
-    return { ok:true, expiresAt:data.expiresAt };
-  }
+  return { ok:true, expiresAt };
+}
 
 
   // ---- default templates
