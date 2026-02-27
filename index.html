@@ -352,18 +352,19 @@
   // TODO: あなたのWorkers URLに差し替え
   const LICENSE_API_BASE = "https://xpost-core.ssssqqqq255.workers.dev";
 
-  const LS_KEY = "license_key";
+ // ===== License storage keys =====
+const LS_KEY = "license_key";
 const LS_DEVICE = "license_device_id";
 const LS_EXPIRES = "license_expires_at";
 
-  function getOrCreateDeviceId() {
-    let v = localStorage.getItem(LS_DEVICE);
-    if (!v) {
-      v = (crypto.randomUUID ? crypto.randomUUID() : (String(Math.random()).slice(2) + Date.now()));
-      localStorage.setItem(LS_DEVICE, v);
-    }
-    return v;
+function getOrCreateDeviceId() {
+  let v = localStorage.getItem(LS_DEVICE);
+  if (!v) {
+    v = (crypto.randomUUID ? crypto.randomUUID() : (Date.now() + "_" + Math.random()));
+    localStorage.setItem(LS_DEVICE, v);
   }
+  return v;
+}
 function calcRemainingText(expiresAt) {
   if (!expiresAt) return "";
   const exp = new Date(expiresAt).getTime();
@@ -882,24 +883,66 @@ async function checkLicense() {
   const gateInput = document.getElementById("licenseKeyInput_gate");
   const gateMsg = document.getElementById("licenseMsg_gate");
   const gateBtn = document.getElementById("activateBtn_gate");
-  if (gateBtn && gateInput) {
-    gateBtn.addEventListener("click", async () => {
-      const key = (gateInput.value || "").trim().toUpperCase();
-      try {
-        gateBtn.disabled = true;
-        if (gateMsg) gateMsg.textContent = "認証中...";
-        const r = await activateLicense(key);
-        if (gateMsg) gateMsg.textContent = "";
-        closeLicenseModal();
-        setLocked(false, r);
-      } catch (e) {
-        if (gateMsg) gateMsg.textContent = String(e.message || e);
-        setLocked(true);
-      } finally {
-        gateBtn.disabled = false;
-      }
+  if (gateBtn && gateInput) document.getElementById("activateBtn").addEventListener("click", async () => {
+  try {
+    const keyInput = document.getElementById("licenseKeyInput");
+    const key = (keyInput.value || "").trim().toUpperCase();
+    if (!key) {
+      alert("ライセンスキーを入力して");
+      return;
+    }
+
+    const LS_KEY = "license_key";
+    const LS_DEVICE = "license_device_id";
+    const LS_EXPIRES = "license_expires_at";
+
+    let deviceId = localStorage.getItem(LS_DEVICE);
+    if (!deviceId) {
+      deviceId = crypto.randomUUID ? crypto.randomUUID() : Date.now() + "_" + Math.random();
+      localStorage.setItem(LS_DEVICE, deviceId);
+    }
+
+    // activate
+    const res = await fetch(`${LICENSE_API_BASE}/api/activate`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ key, deviceId })
     });
+
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.ok) {
+      alert("認証失敗: " + (data.message || "activate_failed"));
+      return;
+    }
+
+    // 保存（次回自動認証用）
+    localStorage.setItem(LS_KEY, key);
+
+    // checkして期限取得
+    const res2 = await fetch(`${LICENSE_API_BASE}/api/check`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ key, deviceId })
+    });
+
+    const data2 = await res2.json().catch(() => ({}));
+    if (!res2.ok || !data2.ok) {
+      alert("確認失敗");
+      return;
+    }
+
+    const expiresAt = data2.expires || data2.expiresAt || "";
+    if (expiresAt) {
+      localStorage.setItem(LS_EXPIRES, expiresAt);
+    }
+
+    alert("認証成功");
+    location.reload();
+
+  } catch (e) {
+    alert("エラー: " + e.message);
   }
+});
 
 $("activateBtn").addEventListener("click", async () => {
     const key = ($("licenseKeyInput").value || "").trim().toUpperCase();
