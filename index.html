@@ -107,7 +107,6 @@
 
   <div class="topbar">
     <h1>SNS Hyper Core</h1>
-   <span class="pill" id="localHint">ローカルHTMLで動作 / コピペOK</span>
   
     <div class="lockbar">
       <span class="pill" id="licenseStatus">🔒 未認証</span>
@@ -1259,9 +1258,7 @@ function bindActivateButtons() {
       }
 
       const key = (input.value || "").trim().toUpperCase();
-      if (!key) {
-        alert("キーを入力して");
-        return;
+    if (!key) return;
       }
 
       const LS_KEY = "license_key";
