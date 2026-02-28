@@ -439,10 +439,77 @@ table thead th{
   box-shadow: none;
 }
 
+
+/* ===== Startup Overlay (A) ===== */
+#startupOverlay{
+  position:fixed; inset:0;
+  display:flex; align-items:center; justify-content:center;
+  background:
+    radial-gradient(900px 600px at 15% 0%, rgba(180,0,255,.26), transparent 55%),
+    radial-gradient(900px 600px at 100% 0%, rgba(0,229,255,.22), transparent 55%),
+    #070A12;
+  z-index:999999;
+  opacity:1;
+  transition: opacity 520ms ease;
+}
+#startupOverlay.hide{ opacity:0; pointer-events:none; }
+#startupOverlay .startupInner{ text-align:center; }
+#startupOverlay .startupMark{
+  width:86px; height:86px; margin:0 auto 14px;
+  border-radius:22px;
+  border:1px solid rgba(255,255,255,.16);
+  background: linear-gradient(135deg, rgba(0,229,255,.28), rgba(180,0,255,.20));
+  box-shadow: 0 0 34px rgba(0,229,255,.14), 0 0 34px rgba(180,0,255,.10);
+  position:relative;
+}
+#startupOverlay .startupMark:before{
+  content:""; position:absolute; inset:10px;
+  border-radius:16px;
+  border:1px solid rgba(255,255,255,.18);
+  box-shadow: inset 0 0 18px rgba(0,229,255,.12);
+}
+#startupOverlay .startupTitle{
+  letter-spacing:.18em;
+  font-weight:700;
+  font-size:18px;
+  text-shadow: 0 0 18px rgba(0,229,255,.18);
+}
+#startupOverlay .startupSub{
+  margin-top:8px;
+  color: rgba(255,255,255,.65);
+  font-size:12px;
+}
+@media (prefers-reduced-motion: reduce){
+  #startupOverlay{ transition:none; }
+}
+
+/* ===== Header Neon Pulse (B) ===== */
+h1, .appTitle, #appTitle{
+  position:relative;
+  animation: neonPulse 2.8s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce){
+  h1, .appTitle, #appTitle{ animation:none; }
+}
+@keyframes neonPulse{
+  0%,100%{ text-shadow:0 0 14px rgba(0,229,255,.16), 0 0 22px rgba(180,0,255,.10); }
+  50%{ text-shadow:0 0 22px rgba(0,229,255,.24), 0 0 34px rgba(180,0,255,.16); }
+}
+
 </style>
 </head>
 
 <body>
+
+<!-- ===== Startup Logo Overlay (A) ===== -->
+<div id="startupOverlay" aria-hidden="true">
+  <div class="startupInner">
+    <div class="startupMark" aria-hidden="true"></div>
+    <div class="startupTitle">HYPER CORE</div>
+    <div class="startupSub">loading…</div>
+  </div>
+</div>
+
   <!-- License Gate: shown until activation succeeds -->
   <div id="licenseGate">
     <div class="gateBox">
@@ -1591,12 +1658,35 @@ $("activateBtn").addEventListener("click", async () => {
 
 
 
-  </script>
+</script>
 
 <script>
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('./sw.js');
-}
+// ===== Startup Overlay Controller (A) =====
+(function(){
+  const ov = document.getElementById('startupOverlay');
+  if(!ov) return;
+
+  function hide(){
+    if(ov.classList.contains('hide')) return;
+    ov.classList.add('hide');
+    setTimeout(()=>{ try{ ov.remove(); }catch(e){} }, 650);
+  }
+
+  // Auto-hide after 1.2s (stable)
+  setTimeout(hide, 1200);
+
+  // Hook common unlock functions if they exist
+  ['unlockApp','showApp','enterApp'].forEach(fnName=>{
+    const orig = window[fnName];
+    if(typeof orig === 'function'){
+      window[fnName] = function(){
+        const r = orig.apply(this, arguments);
+        hide();
+        return r;
+      };
+    }
+  });
+})();
 </script>
 
 </body>
