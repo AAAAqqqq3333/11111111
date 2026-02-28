@@ -589,6 +589,29 @@ h1, .appTitle, #appTitle{
 .hcModalActions{ display:flex; gap:10px; justify-content:flex-end; margin-top: 14px; flex-wrap:wrap; }
 
 </style>
+
+<script>
+// ===== Ensure stable deviceId =====
+(function(){
+  try{
+    const keys = ['deviceId','licenseDeviceId','hc_deviceId'];
+    let cur = null;
+    for(const k of keys){
+      const v = localStorage.getItem(k);
+      if(v && v.length > 6){ cur = v; break; }
+    }
+    if(!cur){
+      // pseudo-UUID (no crypto required)
+      const r = () => Math.random().toString(16).slice(2,10);
+      cur = 'hc-' + r() + '-' + r();
+    }
+    localStorage.setItem('hc_deviceId', cur);
+    // keep legacy key too for older code
+    if(!localStorage.getItem('deviceId')) localStorage.setItem('deviceId', cur);
+  }catch(e){}
+})();
+</script>
+
 </head>
 
 <body>
@@ -1968,7 +1991,7 @@ function openModal(){
     if(statusEl) statusEl.textContent = "未認証";
     if(expEl) expEl.textContent = "-";
     if(remEl) remEl.textContent = "-";
-    if(keyEl) keyEl.textContent = maskKey(k);
+    if(keyEl) keyEl.textContent = k ? maskKey(k) : "（保存なし）";
 
     // Determine status by expiry if available, else by presence of key/flag/header
     let decided = false;
@@ -2126,6 +2149,45 @@ function openModal(){
     }catch(e){}
     return res;
   };
+})();
+</script>
+
+
+<script>
+// ===== Capture license key input =====
+(function(){
+  function isKeyLike(v){
+    if(!v) return false;
+    v = String(v).trim().toUpperCase();
+    return /^[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$/.test(v);
+  }
+  function hook(){
+    const inputs = Array.from(document.querySelectorAll('input')).filter(inp=>{
+      const ph = (inp.getAttribute('placeholder')||'').toUpperCase();
+      const id = (inp.id||'').toLowerCase();
+      const nm = (inp.name||'').toLowerCase();
+      return ph.includes('XXXX') || id.includes('license') || nm.includes('license') || id.includes('key') || nm.includes('key');
+    });
+    inputs.forEach(inp=>{
+      if(inp.dataset.hcHooked) return;
+      inp.dataset.hcHooked = '1';
+      inp.addEventListener('input', ()=>{
+        const v = inp.value || '';
+        if(isKeyLike(v)){
+          try{ localStorage.setItem('licenseKey', v.toUpperCase()); }catch(e){}
+        }
+      });
+      inp.addEventListener('change', ()=>{
+        const v = inp.value || '';
+        if(isKeyLike(v)){
+          try{ localStorage.setItem('licenseKey', v.toUpperCase()); }catch(e){}
+        }
+      });
+    });
+  }
+  if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', hook);
+  else hook();
+  setInterval(hook, 1000);
 })();
 </script>
 
