@@ -483,6 +483,39 @@ table thead th{
   #startupOverlay{ transition:none; }
 }
 
+
+/* Startup icon + subtle motion (avoid "freeze" feel) */
+#startupOverlay .startupMark{
+  animation: startupPulse 1.2s ease-in-out infinite;
+}
+#startupOverlay .startupIcon{
+  width: 54px;
+  height: 54px;
+  border-radius: 14px;
+  display:block;
+  margin: 16px auto 0;
+  filter: drop-shadow(0 0 10px rgba(0,229,255,.18)) drop-shadow(0 0 10px rgba(180,0,255,.14));
+}
+#startupOverlay .startupSub:after{
+  content:"";
+  display:inline-block;
+  width: 18px;
+  text-align:left;
+  animation: dots 1.0s steps(4,end) infinite;
+}
+@keyframes startupPulse{
+  0%,100%{ transform: scale(1); box-shadow: 0 0 30px rgba(0,229,255,.12), 0 0 30px rgba(180,0,255,.08); }
+  50%{ transform: scale(1.03); box-shadow: 0 0 44px rgba(0,229,255,.18), 0 0 44px rgba(180,0,255,.12); }
+}
+@keyframes dots{
+  0%{ content:""; }
+  25%{ content:"."; }
+  50%{ content:".."; }
+  75%{ content:"..."; }
+  100%{ content:""; }
+}
+
+
 /* ===== Header Neon Pulse (B) ===== */
 h1, .appTitle, #appTitle{
   position:relative;
@@ -496,6 +529,65 @@ h1, .appTitle, #appTitle{
   50%{ text-shadow:0 0 22px rgba(0,229,255,.24), 0 0 34px rgba(180,0,255,.16); }
 }
 
+
+/* ===== Modal (License & Updates) ===== */
+.hcModal{ position:fixed; inset:0; z-index:999998; display:none; }
+.hcModal.show{ display:block; }
+.hcModalBackdrop{ position:absolute; inset:0; background:rgba(0,0,0,.55); backdrop-filter: blur(6px); }
+.hcModalPanel{
+  position:relative;
+  margin: 10vh auto 0;
+  width: min(720px, calc(100vw - 22px));
+  max-height: 80vh;
+  overflow:auto;
+  border-radius: 18px;
+  border: 1px solid rgba(255,255,255,.12);
+  background: rgba(10,12,20,.72);
+  box-shadow: 0 18px 50px rgba(0,0,0,.45), 0 0 40px rgba(0,229,255,.08);
+}
+.hcModalHeader{
+  display:flex; align-items:center; justify-content:space-between;
+  padding: 14px 14px 10px;
+  border-bottom: 1px solid rgba(255,255,255,.10);
+}
+.hcModalTitle{ font-weight:800; letter-spacing:.08em; font-size:14px; color: rgba(255,255,255,.92); }
+.hcModalClose{
+  appearance:none; border:0; background:transparent; color: rgba(255,255,255,.72);
+  font-size:18px; padding: 6px 10px; border-radius: 10px;
+}
+.hcModalClose:active{ transform: scale(.98); }
+.hcModalBody{ padding: 14px; }
+.hcInfoGrid{
+  display:grid;
+  grid-template-columns: repeat(2, minmax(0,1fr));
+  gap: 10px;
+}
+@media (min-width: 720px){
+  .hcInfoGrid{ grid-template-columns: repeat(3, minmax(0,1fr)); }
+}
+.hcInfoCard{
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,.10);
+  background: rgba(0,0,0,.20);
+}
+.hcInfoLabel{ font-size:11px; color: rgba(255,255,255,.60); margin-bottom:6px; }
+.hcInfoValue{ font-size:13px; color: rgba(255,255,255,.92); font-weight:700; }
+.hcInfoValue.mono{ font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-weight:600; font-size:12px; }
+.hcSection{ margin-top: 14px; }
+.hcSectionTitle{ font-weight:800; color: rgba(255,255,255,.90); font-size:13px; margin: 6px 0 10px; }
+.hcChangelog{ display:flex; flex-direction:column; gap:10px; }
+.hcChangelogItem{
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,.10);
+  background: rgba(0,0,0,.18);
+}
+.hcChangelogVer{ font-size:12px; font-weight:800; letter-spacing:.06em; color: rgba(0,229,255,.78); }
+.hcChangelogTxt{ margin-top:6px; font-size:12px; line-height:1.55; color: rgba(255,255,255,.78); }
+.hcHint{ margin-top:8px; font-size:11px; color: rgba(255,255,255,.55); }
+.hcModalActions{ display:flex; gap:10px; justify-content:flex-end; margin-top: 14px; flex-wrap:wrap; }
+
 </style>
 </head>
 
@@ -504,7 +596,9 @@ h1, .appTitle, #appTitle{
 <!-- ===== Startup Logo Overlay (A) ===== -->
 <div id="startupOverlay" aria-hidden="true">
   <div class="startupInner">
-    <div class="startupMark" aria-hidden="true"></div>
+    <div class="startupMark" aria-hidden="true">
+      <img class="startupIcon" src="icon-180.png" alt="" loading="eager" />
+    </div>
     <div class="startupTitle">HYPER CORE</div>
     <div class="startupSub">loading…</div>
   </div>
@@ -1673,7 +1767,7 @@ $("activateBtn").addEventListener("click", async () => {
   }
 
   // Auto-hide after 1.2s (stable)
-  setTimeout(hide, 1200);
+  setTimeout(hide, 2000);
 
   // Hook common unlock functions if they exist
   ['unlockApp','showApp','enterApp'].forEach(fnName=>{
@@ -1686,6 +1780,175 @@ $("activateBtn").addEventListener("click", async () => {
       };
     }
   });
+})();
+</script>
+
+
+<!-- ===== License & Updates Modal ===== -->
+<div id="infoModal" class="hcModal" aria-hidden="true">
+  <div class="hcModalBackdrop" data-close="1"></div>
+  <div class="hcModalPanel" role="dialog" aria-modal="true" aria-labelledby="infoModalTitle">
+    <div class="hcModalHeader">
+      <div id="infoModalTitle" class="hcModalTitle">ライセンス情報 / アップデート</div>
+      <button class="hcModalClose" type="button" data-close="1" aria-label="閉じる">✕</button>
+    </div>
+
+    <div class="hcModalBody">
+      <div class="hcInfoGrid">
+        <div class="hcInfoCard">
+          <div class="hcInfoLabel">状態</div>
+          <div class="hcInfoValue" id="hcLicStatus">未認証</div>
+        </div>
+        <div class="hcInfoCard">
+          <div class="hcInfoLabel">期限</div>
+          <div class="hcInfoValue" id="hcLicExpiry">-</div>
+        </div>
+        <div class="hcInfoCard">
+          <div class="hcInfoLabel">残り</div>
+          <div class="hcInfoValue" id="hcLicRemain">-</div>
+        </div>
+        <div class="hcInfoCard">
+          <div class="hcInfoLabel">キー</div>
+          <div class="hcInfoValue mono" id="hcLicKey">-</div>
+        </div>
+        <div class="hcInfoCard">
+          <div class="hcInfoLabel">端末ID</div>
+          <div class="hcInfoValue mono" id="hcDeviceId">-</div>
+        </div>
+      </div>
+
+      <div class="hcSection">
+        <div class="hcSectionTitle">アップデート内容</div>
+        <div class="hcChangelog" id="hcChangelog">
+          <div class="hcChangelogItem">
+            <div class="hcChangelogVer">v1.0</div>
+            <div class="hcChangelogTxt">ライセンス認証 / 期限表示 / 管理パネル / 投稿生成 / アカウント保存 / Telegram / 予約投稿</div>
+          </div>
+          <div class="hcChangelogItem">
+            <div class="hcChangelogVer">v1.1</div>
+            <div class="hcChangelogTxt">起動ロゴ、ヘッダー脈動、PCアクティベート安定化、D1構造修正</div>
+          </div>
+        </div>
+        <div class="hcHint">※ここはあとから追記できます（HTML内の “アップデート内容” を編集）。</div>
+      </div>
+
+      <div class="hcModalActions">
+        <button type="button" class="btn secondary" id="hcReauthBtn">ライセンス再認証</button>
+        <button type="button" class="btn primary" data-close="1">閉じる</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<script>
+// ===== License Button -> Info Modal =====
+(function(){
+  const modal = document.getElementById('infoModal');
+  if(!modal) return;
+
+  function openModal(){
+    // Populate license info
+    let lic = null;
+    try { lic = JSON.parse(localStorage.getItem('licenseData')||'null'); } catch(e){ lic=null; }
+    const statusEl = document.getElementById('hcLicStatus');
+    const expEl = document.getElementById('hcLicExpiry');
+    const remEl = document.getElementById('hcLicRemain');
+    const keyEl = document.getElementById('hcLicKey');
+    const devEl = document.getElementById('hcDeviceId');
+
+    const deviceId = localStorage.getItem('deviceId') || localStorage.getItem('licenseDeviceId') || '-';
+    if(devEl) devEl.textContent = deviceId;
+
+    if(lic && (lic.expires_at || lic.expiresAt || lic.expires)){
+      const expRaw = lic.expires_at || lic.expiresAt || lic.expires;
+      const exp = new Date(expRaw);
+      const now = new Date();
+      const ms = exp.getTime() - now.getTime();
+      const days = Math.max(0, Math.ceil(ms / 86400000));
+      const ok = ms > 0 && !lic.revoked;
+
+      if(statusEl) statusEl.textContent = ok ? "認証済み" : "期限切れ";
+      if(expEl) expEl.textContent = isNaN(exp.getTime()) ? String(expRaw) : exp.toLocaleDateString('ja-JP');
+      if(remEl) remEl.textContent = isNaN(exp.getTime()) ? "-" : (days + "日");
+      const k = lic.key || lic.licenseKey || localStorage.getItem('licenseKey') || "-";
+      const masked = (k && k.length >= 8) ? (k.slice(0,4)+"-****-****-"+k.slice(-4)) : k;
+      if(keyEl) keyEl.textContent = masked;
+    } else {
+      if(statusEl) statusEl.textContent = "未認証";
+      if(expEl) expEl.textContent = "-";
+      if(remEl) remEl.textContent = "-";
+      const k = localStorage.getItem('licenseKey') || "-";
+      const masked = (k && k.length >= 8) ? (k.slice(0,4)+"-****-****-"+k.slice(-4)) : k;
+      if(keyEl) keyEl.textContent = masked;
+    }
+
+    modal.classList.add('show');
+    modal.setAttribute('aria-hidden','false');
+    document.body.style.overflow = 'hidden';
+  }
+
+  function closeModal(){
+    modal.classList.remove('show');
+    modal.setAttribute('aria-hidden','true');
+    document.body.style.overflow = '';
+  }
+
+  // Close handlers
+  modal.addEventListener('click', (e)=>{
+    const t = e.target;
+    if(t && t.dataset && t.dataset.close){ closeModal(); }
+  });
+  document.addEventListener('keydown', (e)=>{
+    if(e.key === 'Escape' && modal.classList.contains('show')) closeModal();
+  });
+
+  // Reauth button: open license panel (if exists)
+  const reauth = document.getElementById('hcReauthBtn');
+  if(reauth){
+    reauth.addEventListener('click', ()=>{
+      closeModal();
+      // Try to switch to license panel if a tab/button exists
+      const licBtn = document.querySelector('[data-tab="license"], #tabLicense, #licenseTabBtn');
+      if(licBtn) { try{ licBtn.click(); }catch(e){} }
+      const licSection = document.getElementById('licensePanel') || document.getElementById('licenseSection') || document.querySelector('.license-section');
+      if(licSection) licSection.scrollIntoView({behavior:'smooth', block:'start'});
+    });
+  }
+
+  // Repurpose existing "ライセンス認証" button (by id or text)
+  function bindLicenseInfoButton(){
+    let btn = document.getElementById('licenseBtn') || document.getElementById('btnLicense') || document.querySelector('button[data-action="license"]');
+    if(!btn){
+      btn = Array.from(document.querySelectorAll('button, a')).find(el => (el.textContent||'').trim() === 'ライセンス認証');
+    }
+    if(!btn) return;
+
+    // Change label
+    try{ btn.textContent = '情報'; }catch(e){}
+    // Ensure clickable
+    btn.style.pointerEvents = 'auto';
+
+    // Remove old handlers by cloning (safe)
+    const clone = btn.cloneNode(true);
+    btn.parentNode.replaceChild(clone, btn);
+    clone.addEventListener('click', (e)=>{
+      e.preventDefault();
+      e.stopPropagation();
+      openModal();
+    }, {passive:false});
+  }
+
+  // Bind after DOM ready and after potential UI init
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', bindLicenseInfoButton);
+  } else {
+    bindLicenseInfoButton();
+  }
+  // Also try again after a short delay (if UI built dynamically)
+  setTimeout(bindLicenseInfoButton, 600);
+  window.addEventListener('focus', ()=>setTimeout(bindLicenseInfoButton, 150));
+
 })();
 </script>
 
