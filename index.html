@@ -1841,46 +1841,96 @@ $("activateBtn").addEventListener("click", async () => {
 </div>
 
 
+
 <script>
-// ===== License Button -> Info Modal =====
+// ===== License Button -> Info Modal (Stable v2) =====
 (function(){
   const modal = document.getElementById('infoModal');
   if(!modal) return;
 
+  function getStoredJSON(key){
+    try{
+      const v = localStorage.getItem(key);
+      if(!v) return null;
+      return JSON.parse(v);
+    }catch(e){ return null; }
+  }
+
+  // Try multiple keys (old/new builds)
+  function getLicense(){
+    return (
+      getStoredJSON('licenseData') ||
+      getStoredJSON('hc_licenseData') ||
+      getStoredJSON('hypercore_licenseData') ||
+      getStoredJSON('license_info') ||
+      null
+    );
+  }
+
+  function getDeviceId(){
+    return (
+      localStorage.getItem('deviceId') ||
+      localStorage.getItem('licenseDeviceId') ||
+      localStorage.getItem('hc_deviceId') ||
+      '-'
+    );
+  }
+
+  function maskKey(k){
+    if(!k) return '-';
+    k = String(k).trim();
+    if(k.length >= 19) return k.slice(0,4) + "-****-****-" + k.slice(-4);
+    if(k.length >= 8) return k.slice(0,4) + "****" + k.slice(-2);
+    return k;
+  }
+
+  function calcRemainDays(expRaw){
+    const exp = new Date(expRaw);
+    if(isNaN(exp.getTime())) return null;
+    const now = new Date();
+    const ms = exp.getTime() - now.getTime();
+    return { exp, ms, days: Math.max(0, Math.ceil(ms / 86400000)) };
+  }
+
   function openModal(){
     // Populate license info
-    let lic = null;
-    try { lic = JSON.parse(localStorage.getItem('licenseData')||'null'); } catch(e){ lic=null; }
+    const lic = getLicense();
+
     const statusEl = document.getElementById('hcLicStatus');
     const expEl = document.getElementById('hcLicExpiry');
     const remEl = document.getElementById('hcLicRemain');
     const keyEl = document.getElementById('hcLicKey');
     const devEl = document.getElementById('hcDeviceId');
 
-    const deviceId = localStorage.getItem('deviceId') || localStorage.getItem('licenseDeviceId') || '-';
-    if(devEl) devEl.textContent = deviceId;
+    if(devEl) devEl.textContent = getDeviceId();
 
-    if(lic && (lic.expires_at || lic.expiresAt || lic.expires)){
-      const expRaw = lic.expires_at || lic.expiresAt || lic.expires;
-      const exp = new Date(expRaw);
-      const now = new Date();
-      const ms = exp.getTime() - now.getTime();
-      const days = Math.max(0, Math.ceil(ms / 86400000));
-      const ok = ms > 0 && !lic.revoked;
+    // Default values
+    if(statusEl) statusEl.textContent = "未認証";
+    if(expEl) expEl.textContent = "-";
+    if(remEl) remEl.textContent = "-";
+    if(keyEl) keyEl.textContent = maskKey(localStorage.getItem('licenseKey'));
 
-      if(statusEl) statusEl.textContent = ok ? "認証済み" : "期限切れ";
-      if(expEl) expEl.textContent = isNaN(exp.getTime()) ? String(expRaw) : exp.toLocaleDateString('ja-JP');
-      if(remEl) remEl.textContent = isNaN(exp.getTime()) ? "-" : (days + "日");
-      const k = lic.key || lic.licenseKey || localStorage.getItem('licenseKey') || "-";
-      const masked = (k && k.length >= 8) ? (k.slice(0,4)+"-****-****-"+k.slice(-4)) : k;
-      if(keyEl) keyEl.textContent = masked;
-    } else {
-      if(statusEl) statusEl.textContent = "未認証";
-      if(expEl) expEl.textContent = "-";
-      if(remEl) remEl.textContent = "-";
-      const k = localStorage.getItem('licenseKey') || "-";
-      const masked = (k && k.length >= 8) ? (k.slice(0,4)+"-****-****-"+k.slice(-4)) : k;
-      if(keyEl) keyEl.textContent = masked;
+    if(lic){
+      const expRaw = lic.expires_at || lic.expiresAt || lic.expires || lic.exp || lic.expiry;
+      const k = lic.key || lic.licenseKey || localStorage.getItem('licenseKey');
+      if(keyEl) keyEl.textContent = maskKey(k);
+
+      if(expRaw){
+        const r = calcRemainDays(expRaw);
+        if(r){
+          const ok = r.ms > 0 && !lic.revoked && !lic.is_revoked;
+          if(statusEl) statusEl.textContent = ok ? "認証済み" : "期限切れ";
+          if(expEl) expEl.textContent = r.exp.toLocaleDateString('ja-JP');
+          if(remEl) remEl.textContent = r.days + "日";
+        }else{
+          // if date parsing fails, still show raw
+          if(expEl) expEl.textContent = String(expRaw);
+        }
+      }else{
+        // If we don't have expiry, but we do have a "licensed" flag, show as authenticated
+        const flag = localStorage.getItem('hcLicensed') || localStorage.getItem('licensed') || '';
+        if(flag === 'true' && statusEl) statusEl.textContent = "認証済み";
+      }
     }
 
     modal.classList.add('show');
@@ -1908,7 +1958,6 @@ $("activateBtn").addEventListener("click", async () => {
   if(reauth){
     reauth.addEventListener('click', ()=>{
       closeModal();
-      // Try to switch to license panel if a tab/button exists
       const licBtn = document.querySelector('[data-tab="license"], #tabLicense, #licenseTabBtn');
       if(licBtn) { try{ licBtn.click(); }catch(e){} }
       const licSection = document.getElementById('licensePanel') || document.getElementById('licenseSection') || document.querySelector('.license-section');
@@ -1916,41 +1965,64 @@ $("activateBtn").addEventListener("click", async () => {
     });
   }
 
-  // Repurpose existing "ライセンス認証" button (by id or text)
-  function bindLicenseInfoButton(){
-    let btn = document.getElementById('licenseBtn') || document.getElementById('btnLicense') || document.querySelector('button[data-action="license"]');
+  // Find the top-right button reliably
+  function findTopButton(){
+    let btn =
+      document.getElementById('licenseBtn') ||
+      document.getElementById('btnLicense') ||
+      document.querySelector('button[data-action="license"]') ||
+      null;
+
     if(!btn){
-      btn = Array.from(document.querySelectorAll('button, a')).find(el => (el.textContent||'').trim() === 'ライセンス認証');
+      btn = Array.from(document.querySelectorAll('button, a')).find(el => {
+        const t = (el.textContent||'').trim();
+        return t === 'ライセンス認証' || t === '情報';
+      }) || null;
     }
+    return btn;
+  }
+
+  function ensureLabel(btn){
     if(!btn) return;
-
-    // Change label
     try{ btn.textContent = '情報'; }catch(e){}
-    // Ensure clickable
+    btn.setAttribute('data-hc-info', '1');
     btn.style.pointerEvents = 'auto';
+  }
 
-    // Remove old handlers by cloning (safe)
-    const clone = btn.cloneNode(true);
-    btn.parentNode.replaceChild(clone, btn);
-    clone.addEventListener('click', (e)=>{
+  // Capture-click interceptor (prevents old handlers from firing on reload)
+  document.addEventListener('click', (e)=>{
+    const btn = findTopButton();
+    if(btn) ensureLabel(btn);
+
+    const target = e.target;
+    if(!target) return;
+
+    // If clicking the info button (or inside it)
+    if(btn && (target === btn || (btn.contains && btn.contains(target)))){
       e.preventDefault();
       e.stopPropagation();
+      // stopImmediatePropagation might fail in some browsers; guard
+      try{ e.stopImmediatePropagation(); }catch(err){}
       openModal();
-    }, {passive:false});
-  }
+      return;
+    }
+  }, true); // capture phase
 
-  // Bind after DOM ready and after potential UI init
-  if(document.readyState === 'loading'){
-    document.addEventListener('DOMContentLoaded', bindLicenseInfoButton);
-  } else {
-    bindLicenseInfoButton();
+  // Try initial label update (in case no click yet)
+  function init(){
+    const btn = findTopButton();
+    if(btn) ensureLabel(btn);
   }
-  // Also try again after a short delay (if UI built dynamically)
-  setTimeout(bindLicenseInfoButton, 600);
-  window.addEventListener('focus', ()=>setTimeout(bindLicenseInfoButton, 150));
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', init);
+  }else{
+    init();
+  }
+  setTimeout(init, 600);
 
 })();
 </script>
+
 
 </body>
 </html>
