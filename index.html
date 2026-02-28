@@ -1893,8 +1893,9 @@ $("activateBtn").addEventListener("click", async () => {
   }
 
   
+
 function openModal(){
-    // Populate license info (robust scan)
+    // Populate license info (robust scan + header parse)
     const statusEl = document.getElementById('hcLicStatus');
     const expEl = document.getElementById('hcLicExpiry');
     const remEl = document.getElementById('hcLicRemain');
@@ -1902,6 +1903,20 @@ function openModal(){
     const devEl = document.getElementById('hcDeviceId');
 
     if(devEl) devEl.textContent = getDeviceId();
+
+    // Helper: parse info from visible header/badge text like:
+    // "認証済み（期限: 2026-03-30）（残り30日）"
+    function parseFromPageText(){
+      const txt = (document.body && document.body.innerText) ? document.body.innerText : "";
+      const ok = txt.includes("認証済み");
+      const mExp = txt.match(/期限[:：]\s*([0-9]{4}[-\/][0-9]{2}[-\/][0-9]{2})/);
+      const mRem = txt.match(/残り\s*([0-9]+)\s*日/);
+      return {
+        ok,
+        exp: mExp ? mExp[1] : null,
+        rem: mRem ? mRem[1] : null
+      };
+    }
 
     function scanLocalStorageForLicense(){
       // Look for any JSON object containing expires fields / key
@@ -1943,10 +1958,10 @@ function openModal(){
 
     // Also allow separate stored fields
     if(!expRaw){
-      expRaw = localStorage.getItem('expires_at') || localStorage.getItem('expiresAt') || localStorage.getItem('licenseExpiresAt') || null;
+      expRaw = localStorage.getItem('expires_at') || localStorage.getItem('expiresAt') || localStorage.getItem('licenseExpiresAt') || localStorage.getItem('hc_expiresAt') || null;
     }
     if(!k){
-      k = localStorage.getItem('licenseKey') || localStorage.getItem('key') || null;
+      k = localStorage.getItem('licenseKey') || localStorage.getItem('key') || localStorage.getItem('hc_licenseKey') || null;
     }
 
     // Default render
@@ -1955,7 +1970,9 @@ function openModal(){
     if(remEl) remEl.textContent = "-";
     if(keyEl) keyEl.textContent = maskKey(k);
 
-    // Determine status by expiry if available, else by presence of key/flag
+    // Determine status by expiry if available, else by presence of key/flag/header
+    let decided = false;
+
     if(expRaw){
       const r = calcRemainDays(expRaw);
       if(r){
@@ -1963,19 +1980,35 @@ function openModal(){
         if(statusEl) statusEl.textContent = ok ? "認証済み" : "期限切れ";
         if(expEl) expEl.textContent = r.exp.toLocaleDateString('ja-JP');
         if(remEl) remEl.textContent = r.days + "日";
+        decided = true;
       } else {
         // Can't parse date but we have something => treat as authenticated
         if(statusEl) statusEl.textContent = "認証済み";
         if(expEl) expEl.textContent = String(expRaw);
+        decided = true;
       }
-    } else {
+    }
+
+    if(!decided){
       const flag = localStorage.getItem('hcLicensed') || localStorage.getItem('licensed') || '';
       if((k && k.length >= 8) || flag === 'true'){
         if(statusEl) statusEl.textContent = "認証済み";
+        decided = true;
+      }
+    }
+
+    // Final fallback: parse from what user actually sees on the page
+    if(!decided){
+      const p = parseFromPageText();
+      if(p.ok){
+        if(statusEl) statusEl.textContent = "認証済み";
+        if(p.exp && expEl) expEl.textContent = p.exp.replace(/\//g,'-');
+        if(p.rem && remEl) remEl.textContent = p.rem + "日";
       }
     }
 
     modal.classList.add('show');
+
 
     
     modal.setAttribute('aria-hidden','false');
@@ -2067,6 +2100,34 @@ function openModal(){
 })();
 </script>
 
+
+
+<script>
+// ===== Fetch hook to persist license summary =====
+(function(){
+  if(!window.fetch) return;
+  const origFetch = window.fetch.bind(window);
+  window.fetch = async function(input, init){
+    const res = await origFetch(input, init);
+    try{
+      const url = (typeof input === 'string') ? input : (input && input.url) ? input.url : '';
+      if(url && /xpost-core\./.test(url) && /(\/activate|\/validate)/.test(url)){
+        const clone = res.clone();
+        const data = await clone.json().catch(()=>null);
+        if(data && data.ok){
+          const exp = data.expires_at || data.expiresAt || data.expires || null;
+          if(exp){
+            localStorage.setItem('hc_expiresAt', exp);
+            localStorage.setItem('hcLicensed', 'true');
+          }
+          localStorage.setItem('hc_lastLicenseResp', JSON.stringify(data));
+        }
+      }
+    }catch(e){}
+    return res;
+  };
+})();
+</script>
 
 </body>
 </html>
