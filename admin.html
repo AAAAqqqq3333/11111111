@@ -100,6 +100,7 @@
       <div class="row" style="margin-top:10px">
         <button id="genKey" class="secondary">自動生成</button>
         <button id="create">作成</button>
+<button id="btnCopyNewKey" type="button">コピー</button>
       </div>
       <label style="margin-top:14px">結果</label>
       <textarea id="createResult" class="mono" readonly></textarea>
@@ -345,5 +346,150 @@
   bind();
   dbg('boot ok');
 </script>
+
+<script>
+(function(){
+  const KEY_RE = /[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}/i;
+
+  function maskKey(k){
+    if(!k) return "-";
+    const s = String(k).toUpperCase();
+    return s.slice(0,4) + "-****-****-" + s.slice(-4);
+  }
+
+  function showToast(msg){
+    const t = document.getElementById('toast') || document.querySelector('.toast');
+    if(t){
+      t.textContent = msg;
+      t.style.display = 'block';
+      t.classList.add('show');
+      setTimeout(()=>{ t.classList.remove('show'); t.style.display=''; }, 1800);
+    } else {
+      try{ console.log(msg); }catch(e){}
+    }
+  }
+
+  async function copyText(txt){
+    try{
+      await navigator.clipboard.writeText(txt);
+      showToast("コピーしました");
+      return true;
+    }catch(e){
+      const ta = document.createElement('textarea');
+      ta.value = txt;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.focus(); ta.select();
+      const ok = document.execCommand('copy');
+      document.body.removeChild(ta);
+      showToast(ok ? "コピーしました" : "コピー失敗");
+      return ok;
+    }
+  }
+
+  function enhanceKeyRows(){
+    const rows = Array.from(document.querySelectorAll('tr'));
+    rows.forEach(row=>{
+      if(row.dataset.hcEnhanced) return;
+      const text = row.innerText || "";
+      const m = text.match(KEY_RE);
+      if(!m) return;
+      const fullKey = m[0].toUpperCase();
+
+      const cells = Array.from(row.querySelectorAll('td,th'));
+      let cell = cells.find(c=> KEY_RE.test(c.innerText||"")) || cells[0];
+      if(!cell) return;
+
+      let span = cell.querySelector('.hcKeySpan');
+      if(!span){
+        cell.innerHTML = '';
+        span = document.createElement('span');
+        span.className = 'hcKeySpan';
+        span.textContent = maskKey(fullKey);
+        span.dataset.full = fullKey;
+        span.dataset.masked = '1';
+        cell.appendChild(span);
+      }
+
+      const actCell = cells[cells.length-1] || cell;
+      const wrap = document.createElement('div');
+      wrap.className = 'hcRowActions';
+      wrap.style.display = 'flex';
+      wrap.style.gap = '8px';
+      wrap.style.flexWrap = 'wrap';
+
+      const btnShow = document.createElement('button');
+      btnShow.type = 'button';
+      btnShow.textContent = '表示';
+      btnShow.className = 'hcBtnShow';
+
+      const btnCopy = document.createElement('button');
+      btnCopy.type = 'button';
+      btnCopy.textContent = 'コピー';
+      btnCopy.className = 'hcBtnCopy';
+
+      wrap.appendChild(btnShow);
+      wrap.appendChild(btnCopy);
+      actCell.appendChild(wrap);
+
+      row.dataset.hcEnhanced = '1';
+    });
+  }
+
+  document.addEventListener('click', (e)=>{
+    const t = e.target;
+    if(!(t instanceof HTMLElement)) return;
+
+    if(t.id === 'btnCopyNewKey'){
+      const inp = document.getElementById('newKey') || document.querySelector('input[placeholder*="XXXX-XXXX"]');
+      const v = (inp && inp.value) ? inp.value.trim().toUpperCase() : "";
+      if(!KEY_RE.test(v)){
+        showToast("コピーするキーがありません");
+        return;
+      }
+      copyText(v);
+      return;
+    }
+
+    if(t.classList.contains('hcBtnCopy')){
+      const row = t.closest('tr');
+      const span = row ? row.querySelector('.hcKeySpan') : null;
+      const k = span ? span.dataset.full : null;
+      if(k) copyText(k);
+      return;
+    }
+
+    if(t.classList.contains('hcBtnShow')){
+      const row = t.closest('tr');
+      const span = row ? row.querySelector('.hcKeySpan') : null;
+      if(!span) return;
+      const full = span.dataset.full;
+      const masked = span.dataset.masked === '1';
+      if(masked){
+        span.textContent = full;
+        span.dataset.masked = '0';
+        t.textContent = '隠す';
+        setTimeout(()=>{
+          if(span.dataset.masked === '0'){
+            span.textContent = maskKey(full);
+            span.dataset.masked = '1';
+            t.textContent = '表示';
+          }
+        }, 6000);
+      } else {
+        span.textContent = maskKey(full);
+        span.dataset.masked = '1';
+        t.textContent = '表示';
+      }
+      return;
+    }
+  }, true);
+
+  enhanceKeyRows();
+  setInterval(enhanceKeyRows, 1200);
+})();
+</script>
+
 </body>
 </html>
