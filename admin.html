@@ -129,6 +129,7 @@
     <div class="row" style="justify-content:space-between">
       <h2>ログ</h2>
       <button id="refreshLogs" class="secondary">更新</button>
+      <button id="toggleLogReveal" class="secondary">一括表示</button>
     </div>
     <div class="scroll" style="margin-top:10px">
       <table id="logTable">
@@ -318,7 +319,7 @@
       tr.innerHTML = `
         <td>${fmtJST(r.at||'')}</td>
         <td>${r.type||'-'}</td>
-        <td class="mono">${r.key ? (r.key.slice(0,4)+'-****-****-'+r.key.slice(-4)) : '-'}</td>
+        <td class="mono">${formatLogKey(r.key)}</td>
         <td class="mono">${r.device_id || '-'}</td>
         <td class="mono">${r.detail || ''}</td>
       `;
@@ -347,28 +348,26 @@
   dbg('boot ok');
 </script>
 
+
 <script>
+// ===== HyperCore Admin Enhancements (Key reveal on list + bulk log reveal) =====
 (function(){
   const KEY_RE = /[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}/i;
 
-  function maskKey(k){
-    if(!k) return "-";
-    const s = String(k).toUpperCase();
-    return s.slice(0,4) + "-****-****-" + s.slice(-4);
-  }
-
+  // ---- Toast ----
   function showToast(msg){
     const t = document.getElementById('toast') || document.querySelector('.toast');
     if(t){
       t.textContent = msg;
       t.style.display = 'block';
       t.classList.add('show');
-      setTimeout(()=>{ t.classList.remove('show'); t.style.display=''; }, 1800);
+      setTimeout(()=>{ t.classList.remove('show'); t.style.display=''; }, 1600);
     } else {
       try{ console.log(msg); }catch(e){}
     }
   }
 
+  // ---- Clipboard ----
   async function copyText(txt){
     try{
       await navigator.clipboard.writeText(txt);
@@ -388,59 +387,19 @@
     }
   }
 
-  function enhanceKeyRows(){
-    const rows = Array.from(document.querySelectorAll('tr'));
-    rows.forEach(row=>{
-      if(row.dataset.hcEnhanced) return;
-      const text = row.innerText || "";
-      const m = text.match(KEY_RE);
-      if(!m) return;
-      const fullKey = m[0].toUpperCase();
-
-      const cells = Array.from(row.querySelectorAll('td,th'));
-      let cell = cells.find(c=> KEY_RE.test(c.innerText||"")) || cells[0];
-      if(!cell) return;
-
-      let span = cell.querySelector('.hcKeySpan');
-      if(!span){
-        cell.innerHTML = '';
-        span = document.createElement('span');
-        span.className = 'hcKeySpan';
-        span.textContent = maskKey(fullKey);
-        span.dataset.full = fullKey;
-        span.dataset.masked = '1';
-        cell.appendChild(span);
-      }
-
-      const actCell = cells[cells.length-1] || cell;
-      const wrap = document.createElement('div');
-      wrap.className = 'hcRowActions';
-      wrap.style.display = 'flex';
-      wrap.style.gap = '8px';
-      wrap.style.flexWrap = 'wrap';
-
-      const btnShow = document.createElement('button');
-      btnShow.type = 'button';
-      btnShow.textContent = '表示';
-      btnShow.className = 'hcBtnShow';
-
-      const btnCopy = document.createElement('button');
-      btnCopy.type = 'button';
-      btnCopy.textContent = 'コピー';
-      btnCopy.className = 'hcBtnCopy';
-
-      wrap.appendChild(btnShow);
-      wrap.appendChild(btnCopy);
-      actCell.appendChild(wrap);
-
-      row.dataset.hcEnhanced = '1';
-    });
+  // ---- Masking helpers ----
+  function maskKey(k){
+    if(!k) return "-";
+    const s = String(k).toUpperCase();
+    return s.slice(0,4) + "-****-****-" + s.slice(-4);
   }
 
+  // =========================================================
+  // (A) 発行フォーム：入力中キーをコピー（横ボタン）
+  // =========================================================
   document.addEventListener('click', (e)=>{
     const t = e.target;
     if(!(t instanceof HTMLElement)) return;
-
     if(t.id === 'btnCopyNewKey'){
       const inp = document.getElementById('newKey') || document.querySelector('input[placeholder*="XXXX-XXXX"]');
       const v = (inp && inp.value) ? inp.value.trim().toUpperCase() : "";
@@ -451,15 +410,55 @@
       copyText(v);
       return;
     }
+  }, true);
 
-    if(t.classList.contains('hcBtnCopy')){
-      const row = t.closest('tr');
-      const span = row ? row.querySelector('.hcKeySpan') : null;
-      const k = span ? span.dataset.full : null;
-      if(k) copyText(k);
-      return;
-    }
+  // =========================================================
+  // (B) キー一覧（listTable）：各行に「表示」だけ付ける
+  // =========================================================
+  function enhanceListTable(){
+    const table = document.getElementById('listTable');
+    if(!table) return;
+    const rows = Array.from(table.querySelectorAll('tbody tr'));
+    rows.forEach(row=>{
+      if(row.dataset.hcEnhanced) return;
 
+      // key cell is 1st column
+      const cells = Array.from(row.querySelectorAll('td,th'));
+      const keyCell = cells[0];
+      if(!keyCell) return;
+
+      const raw = (keyCell.innerText || '').trim();
+      const m = raw.match(KEY_RE);
+      if(!m) { row.dataset.hcEnhanced='1'; return; }
+      const fullKey = m[0].toUpperCase();
+
+      // replace with masked span (keeping full in dataset)
+      keyCell.innerHTML = '';
+      const span = document.createElement('span');
+      span.className = 'hcKeySpan';
+      span.dataset.full = fullKey;
+      span.dataset.masked = '1';
+      span.textContent = maskKey(fullKey);
+      keyCell.appendChild(span);
+
+      // add reveal button into the last column (if exists), else append new td
+      let actCell = cells[cells.length-1];
+      if(!actCell) actCell = keyCell;
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.textContent = '表示';
+      btn.className = 'hcBtnShow';
+      btn.style.marginLeft = '10px';
+      btn.style.whiteSpace = 'nowrap';
+      actCell.appendChild(btn);
+
+      row.dataset.hcEnhanced = '1';
+    });
+  }
+
+  document.addEventListener('click', (e)=>{
+    const t = e.target;
+    if(!(t instanceof HTMLElement)) return;
     if(t.classList.contains('hcBtnShow')){
       const row = t.closest('tr');
       const span = row ? row.querySelector('.hcKeySpan') : null;
@@ -486,10 +485,77 @@
     }
   }, true);
 
-  enhanceKeyRows();
-  setInterval(enhanceKeyRows, 1200);
+  // =========================================================
+  // (C) ログ（logTable）：一括表示トグル（ボタンは上だけ）
+  // =========================================================
+  window.__hc_logs = window.__hc_logs || { rows: [], reveal: false };
+
+  window.formatLogKey = function(k){
+    if(!k) return "-";
+    return (window.__hc_logs.reveal ? String(k).toUpperCase() : maskKey(k));
+  };
+
+  // If the base script uses refreshLogs(), we monkey-patch by wrapping after it exists.
+  function hookLogs(){
+    const btn = document.getElementById('toggleLogReveal');
+    if(btn && !btn.dataset.hooked){
+      btn.dataset.hooked = '1';
+      btn.addEventListener('click', ()=>{
+        window.__hc_logs.reveal = !window.__hc_logs.reveal;
+        btn.textContent = window.__hc_logs.reveal ? 'マスク' : '一括表示';
+        // re-render current table if rows exist
+        const table = document.getElementById('logTable');
+        if(table){
+          const tb = table.querySelector('tbody');
+          if(tb && window.__hc_logs.rows.length){
+            tb.innerHTML = '';
+            for(const r of window.__hc_logs.rows){
+              const tr=document.createElement('tr');
+              tr.innerHTML = `
+                <td>${(window.fmtJST ? window.fmtJST(r.at||'') : (r.at||''))}</td>
+                <td>${r.type||'-'}</td>
+                <td class="mono">${window.formatLogKey(r.key)}</td>
+                <td class="mono">${r.device_id || '-'}</td>
+                <td class="mono">${r.detail || ''}</td>
+              `;
+              tb.appendChild(tr);
+            }
+            showToast(window.__hc_logs.reveal ? 'OK: 一括表示' : 'OK: マスク');
+          }
+        }
+      });
+    }
+  }
+
+  // Capture rows when refreshLogs runs by patching api() response in-place:
+  // We can't reliably override refreshLogs, so we just watch DOM mutations to take the latest values.
+  const logBody = () => {
+    const t = document.getElementById('logTable');
+    return t ? t.querySelector('tbody') : null;
+  };
+
+  // Best-effort: after each click on 更新, wait and scrape the rows from the table and store them.
+  document.addEventListener('click', (e)=>{
+    const t = e.target;
+    if(!(t instanceof HTMLElement)) return;
+    if(t.id === 'refreshLogs'){
+      setTimeout(()=>{
+        // nothing to do here; base refreshLogs already fetches rows
+      }, 0);
+      // after render, grab original keys from the data source if available in global scope:
+      // If base script sets local variable, we can't access. So instead we rely on formatLogKey being called
+      // because we patched template in refreshLogs to call formatLogKey(r.key) and thus we keep full key in r.key.
+    }
+  }, true);
+
+  // Enhance periodically
+  enhanceListTable();
+  setInterval(enhanceListTable, 1200);
+  hookLogs();
+  setInterval(hookLogs, 1200);
 })();
 </script>
+
 
 </body>
 </html>
