@@ -1829,7 +1829,7 @@ $("activateBtn").addEventListener("click", async () => {
             <div class="hcChangelogTxt">起動ロゴ、ヘッダー脈動、PCアクティベート安定化、D1構造修正</div>
           </div>
         </div>
-        <div class="hcHint">※ここはあとから追記できます（HTML内の “アップデート内容” を編集）。</div>
+        <div class="hcHint"></div>
       </div>
 
       <div class="hcModalActions">
@@ -1892,10 +1892,9 @@ $("activateBtn").addEventListener("click", async () => {
     return { exp, ms, days: Math.max(0, Math.ceil(ms / 86400000)) };
   }
 
-  function openModal(){
-    // Populate license info
-    const lic = getLicense();
-
+  
+function openModal(){
+    // Populate license info (robust scan)
     const statusEl = document.getElementById('hcLicStatus');
     const expEl = document.getElementById('hcLicExpiry');
     const remEl = document.getElementById('hcLicRemain');
@@ -1904,36 +1903,81 @@ $("activateBtn").addEventListener("click", async () => {
 
     if(devEl) devEl.textContent = getDeviceId();
 
-    // Default values
+    function scanLocalStorageForLicense(){
+      // Look for any JSON object containing expires fields / key
+      for(let i=0;i<localStorage.length;i++){
+        const k = localStorage.key(i);
+        if(!k) continue;
+        const v = localStorage.getItem(k);
+        if(!v || v.length < 2) continue;
+        const first = v[0];
+        if(first !== '{' && first !== '[') continue;
+        try{
+          const obj = JSON.parse(v);
+          if(obj && typeof obj === 'object'){
+            const expRaw = obj.expires_at || obj.expiresAt || obj.expires || obj.exp || obj.expiry;
+            const key = obj.key || obj.licenseKey;
+            if(expRaw || key){
+              return { obj, expRaw, key, storageKey: k };
+            }
+          }
+        }catch(e){}
+      }
+      return null;
+    }
+
+    // Primary: known keys
+    let lic = getLicense();
+    let expRaw = lic ? (lic.expires_at || lic.expiresAt || lic.expires || lic.exp || lic.expiry) : null;
+    let k = lic ? (lic.key || lic.licenseKey) : null;
+
+    // Secondary: scan storage
+    if(!lic || (!expRaw && !k)){
+      const found = scanLocalStorageForLicense();
+      if(found){
+        lic = found.obj;
+        expRaw = found.expRaw || expRaw;
+        k = found.key || k;
+      }
+    }
+
+    // Also allow separate stored fields
+    if(!expRaw){
+      expRaw = localStorage.getItem('expires_at') || localStorage.getItem('expiresAt') || localStorage.getItem('licenseExpiresAt') || null;
+    }
+    if(!k){
+      k = localStorage.getItem('licenseKey') || localStorage.getItem('key') || null;
+    }
+
+    // Default render
     if(statusEl) statusEl.textContent = "未認証";
     if(expEl) expEl.textContent = "-";
     if(remEl) remEl.textContent = "-";
-    if(keyEl) keyEl.textContent = maskKey(localStorage.getItem('licenseKey'));
+    if(keyEl) keyEl.textContent = maskKey(k);
 
-    if(lic){
-      const expRaw = lic.expires_at || lic.expiresAt || lic.expires || lic.exp || lic.expiry;
-      const k = lic.key || lic.licenseKey || localStorage.getItem('licenseKey');
-      if(keyEl) keyEl.textContent = maskKey(k);
-
-      if(expRaw){
-        const r = calcRemainDays(expRaw);
-        if(r){
-          const ok = r.ms > 0 && !lic.revoked && !lic.is_revoked;
-          if(statusEl) statusEl.textContent = ok ? "認証済み" : "期限切れ";
-          if(expEl) expEl.textContent = r.exp.toLocaleDateString('ja-JP');
-          if(remEl) remEl.textContent = r.days + "日";
-        }else{
-          // if date parsing fails, still show raw
-          if(expEl) expEl.textContent = String(expRaw);
-        }
-      }else{
-        // If we don't have expiry, but we do have a "licensed" flag, show as authenticated
-        const flag = localStorage.getItem('hcLicensed') || localStorage.getItem('licensed') || '';
-        if(flag === 'true' && statusEl) statusEl.textContent = "認証済み";
+    // Determine status by expiry if available, else by presence of key/flag
+    if(expRaw){
+      const r = calcRemainDays(expRaw);
+      if(r){
+        const ok = r.ms > 0 && !(lic && (lic.revoked || lic.is_revoked));
+        if(statusEl) statusEl.textContent = ok ? "認証済み" : "期限切れ";
+        if(expEl) expEl.textContent = r.exp.toLocaleDateString('ja-JP');
+        if(remEl) remEl.textContent = r.days + "日";
+      } else {
+        // Can't parse date but we have something => treat as authenticated
+        if(statusEl) statusEl.textContent = "認証済み";
+        if(expEl) expEl.textContent = String(expRaw);
+      }
+    } else {
+      const flag = localStorage.getItem('hcLicensed') || localStorage.getItem('licensed') || '';
+      if((k && k.length >= 8) || flag === 'true'){
+        if(statusEl) statusEl.textContent = "認証済み";
       }
     }
 
     modal.classList.add('show');
+
+    
     modal.setAttribute('aria-hidden','false');
     document.body.style.overflow = 'hidden';
   }
