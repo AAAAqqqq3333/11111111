@@ -588,6 +588,28 @@ h1, .appTitle, #appTitle{
 .hcHint{ margin-top:8px; font-size:11px; color: rgba(255,255,255,.55); }
 .hcModalActions{ display:flex; gap:10px; justify-content:flex-end; margin-top: 14px; flex-wrap:wrap; }
 
+
+/* HyperCore mobile account fixes */
+@media (max-width: 920px){
+  .acct-grid{ grid-template-columns: 1fr !important; }
+  .acct-top-actions{ justify-content: flex-start !important; flex-wrap: wrap; gap: 10px; }
+  .acct-top-actions button{ width: auto; flex: 0 0 auto; }
+  .acct-top-actions .danger{ margin-left: 0 !important; }
+  .acct-table{ width: 100%; font-size: 13px; }
+  .acct-col-label{ min-width: 120px; }
+  .acct-col-actions{ min-width: 180px; }
+}
+@media (max-width: 520px){
+  /* Make the table behave better on very small screens */
+  .acct-table thead{ display:none; }
+  .acct-table, .acct-table tbody, .acct-table tr, .acct-table td{ display:block; width:100%; }
+  .acct-table tr{ border-bottom: 1px solid rgba(255,255,255,.08); padding: 10px 0; }
+  .acct-table td{ padding: 6px 10px !important; }
+  .acct-table td:first-child{ font-weight: 700; }
+  /* Action buttons inside rows */
+  .acct-table button{ width: 100%; margin: 6px 0; }
+}
+
 </style>
 
 <script>
@@ -769,7 +791,7 @@ h1, .appTitle, #appTitle{
         </div>
 
         <div>
-          <div class="btns" style="justify-content:flex-end;">
+          <div class="btns acct-top-actions">
             <button class="secondary" id="accExportBtn" type="button">エクスポート（JSON）</button>
             <button class="secondary" id="accImportBtn" type="button">インポート（JSON）</button>
             <input id="accImportFile" type="file" accept="application/json" style="display:none;">
@@ -780,9 +802,9 @@ h1, .appTitle, #appTitle{
             <table class="acct-table">
               <thead>
                 <tr>
-                  <th style="min-width:140px;">ラベル / ID</th>
+                  <th class="acct-col-label">ラベル / ID</th>
                   <th>メアド</th>
-                  <th style="min-width:260px;">操作</th>
+                  <th class="acct-col-actions">操作</th>
                 </tr>
               </thead>
               <tbody id="accTbody"></tbody>
