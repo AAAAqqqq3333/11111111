@@ -610,6 +610,48 @@ h1, .appTitle, #appTitle{
   .acct-table button{ width: 100%; margin: 6px 0; }
 }
 
+
+    /* Post settings modal */
+    .hc-modal-backdrop{
+      position: fixed; inset: 0;
+      display: none;
+      background: rgba(0,0,0,.45);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      z-index: 9999;
+      padding: 16px;
+    }
+    .hc-modal-backdrop.show{ display:block; }
+    .hc-modal{
+      max-width: 760px;
+      margin: 8vh auto 0;
+      border-radius: 18px;
+      border: 1px solid rgba(255,255,255,.12);
+      background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.06));
+      box-shadow: 0 20px 80px rgba(0,0,0,.55), 0 0 0 1px rgba(0,229,255,.08) inset;
+      overflow: hidden;
+    }
+    .hc-modal-head{
+      display:flex; align-items:center; justify-content:space-between;
+      padding: 14px 14px;
+      border-bottom: 1px solid rgba(255,255,255,.10);
+    }
+    .hc-modal-title{ font-weight: 800; letter-spacing: .04em; }
+    .hc-modal-body{ padding: 14px; max-height: 62vh; overflow:auto; }
+    .hc-modal-foot{
+      padding: 12px 14px;
+      border-top: 1px solid rgba(255,255,255,.10);
+      display:flex; justify-content:flex-end; gap:10px;
+    }
+    .hc-icon-btn{
+      width: 38px; height: 38px;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,.12);
+      background: rgba(255,255,255,.08);
+      color: #fff;
+      cursor:pointer;
+    }
+
 </style>
 
 <script>
@@ -719,6 +761,10 @@ h1, .appTitle, #appTitle{
     </div>
 
     <div class="card">
+      <div class="btns" style="margin-bottom:10px;">
+        <button class="secondary" id="openPostSettingsBtn" type="button">投稿設定</button>
+      </div>
+      <div id="postSettingsBlock" style="display:none;">
       <label>生成数（最大）</label>
       <input id="maxGen" type="number" min="1" max="200" value="30">
 
@@ -734,6 +780,8 @@ h1, .appTitle, #appTitle{
         <button class="secondary" id="insertBuzzBtn" type="button">ランダム挿入（カーソル位置）</button>
         <button class="secondary" id="clearBuzzBtn" type="button">辞書クリア</button>
       </div>
+      </div>
+
 
       <div class="btns">
         <button id="generateBtn">生成</button>
@@ -2282,7 +2330,65 @@ function openModal(){
   else hook();
   setInterval(hook, 1000);
 })();
+
+  // --- Post Settings Modal wiring (v9) ---
+  (function(){
+    function ready(fn){ if(document.readyState!=='loading') fn(); else document.addEventListener('DOMContentLoaded', fn); }
+    ready(function(){
+      var modal = document.getElementById('postSettingsModal');
+      var body = document.getElementById('postSettingsBody');
+      var block = document.getElementById('postSettingsBlock');
+      var openBtn = document.getElementById('openPostSettingsBtn');
+      var close1 = document.getElementById('closePostSettingsBtn');
+      var close2 = document.getElementById('closePostSettingsBtn2');
+
+      if(modal && body && block){
+        // move settings UI into modal (keeps existing IDs + logic)
+        body.appendChild(block);
+        block.style.display = 'block';
+      }
+
+      function open(){
+        if(!modal) return;
+        modal.classList.add('show');
+        modal.setAttribute('aria-hidden','false');
+        document.documentElement.style.overflow = 'hidden';
+      }
+      function close(){
+        if(!modal) return;
+        modal.classList.remove('show');
+        modal.setAttribute('aria-hidden','true');
+        document.documentElement.style.overflow = '';
+      }
+
+      if(openBtn) openBtn.addEventListener('click', open);
+      if(close1) close1.addEventListener('click', close);
+      if(close2) close2.addEventListener('click', close);
+      if(modal) modal.addEventListener('click', function(e){
+        if(e.target === modal) close();
+      });
+      document.addEventListener('keydown', function(e){
+        if(e.key === 'Escape') close();
+      });
+    });
+  })();
+
 </script>
+
+
+  <!-- Post settings modal -->
+  <div class="hc-modal-backdrop" id="postSettingsModal" aria-hidden="true">
+    <div class="hc-modal" role="dialog" aria-modal="true" aria-labelledby="postSettingsTitle">
+      <div class="hc-modal-head">
+        <div class="hc-modal-title" id="postSettingsTitle">投稿設定</div>
+        <button class="hc-icon-btn" type="button" id="closePostSettingsBtn" aria-label="close">×</button>
+      </div>
+      <div class="hc-modal-body" id="postSettingsBody"></div>
+      <div class="hc-modal-foot">
+        <button class="secondary" type="button" id="closePostSettingsBtn2">閉じる</button>
+      </div>
+    </div>
+  </div>
 
 </body>
 </html>
