@@ -39,6 +39,10 @@
     #licenseModal .box .muted { margin-top: 6px; }
     #licenseModal .row { display:flex; gap:10px; }
 
+    #postSettingsModal { position: fixed; inset: 0; display:none; align-items:center; justify-content:center; background: rgba(0,0,0,.55); z-index: 9998; padding: 16px; }
+    #postSettingsModal .box { width: min(720px, 100%); max-height: min(86vh, 900px); overflow:auto; background: #fff; border-radius: 14px; padding: 14px; border: 1px solid #ddd; }
+
+
   
     /* License gate */
     #licenseGate{
@@ -697,7 +701,15 @@ h1, .appTitle, #appTitle{
   </div>
 
 
-  <div class="row">
+  
+  <!-- Post settings modal -->
+  <div id="postSettingsModal" aria-hidden="true">
+    <div class="box">
+      <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
+        <h3 style="margin:0; font-size:16px;">投稿設定</h3>
+        <button class="secondary" id="closePostSettingsBtn" type="button">閉じる</button>
+      </div>
+
     <div class="card">
       <label>テンプレート（{{変数名}} を使う）</label>
       <select id="templateSelect"></select>
@@ -736,14 +748,23 @@ h1, .appTitle, #appTitle{
       </div>
 
       <div class="btns">
-        <button id="generateBtn">生成</button>
-        <button class="secondary" id="shuffleBtn">シャッフル生成</button>
-        <button class="secondary" id="copyAllBtn">全部コピー</button>
         <button class="secondary" id="exportBtn">JSON書き出し</button>
         <button class="secondary" id="importBtn">JSON読み込み</button>
         <input id="importFile" type="file" accept="application/json" style="display:none;">
       </div>
 
+    </div>
+  </div>
+
+
+  <div class="row">
+    <div class="card">
+      <div class="btns">
+        <button class="secondary" id="openPostSettingsBtn" type="button">投稿設定</button>
+        <button id="generateBtn" type="button">生成</button>
+        <button class="secondary" id="shuffleBtn" type="button">シャッフル生成</button>
+        <button class="secondary" id="copyAllBtn" type="button">全部コピー</button>
+      </div>
       <div class="muted" id="stats"></div>
       <div class="muted" id="xCharInfo"></div>
     </div>
@@ -751,8 +772,7 @@ h1, .appTitle, #appTitle{
 
   <div class="out" id="output"></div>
 
-
-  </div> <!-- /pageMain -->
+</div> <!-- /pageMain -->
 
   <div class="page" id="pageAccounts">
     <div class="card">
@@ -1429,6 +1449,25 @@ async function checkLicense() {
 
   $("openLicenseBtn").addEventListener("click", () => openLicenseModal());
   $("closeLicenseBtn").addEventListener("click", closeLicenseModal);
+
+  // ---- Post settings modal
+  const postModal = document.getElementById("postSettingsModal");
+  const openPostBtn = document.getElementById("openPostSettingsBtn");
+  const closePostBtn = document.getElementById("closePostSettingsBtn");
+  const openPostSettings = () => {
+    if (!postModal) return;
+    postModal.style.display = "flex";
+    postModal.setAttribute("aria-hidden", "false");
+  };
+  const closePostSettings = () => {
+    if (!postModal) return;
+    postModal.style.display = "none";
+    postModal.setAttribute("aria-hidden", "true");
+  };
+  if (openPostBtn) openPostBtn.addEventListener("click", openPostSettings);
+  if (closePostBtn) closePostBtn.addEventListener("click", closePostSettings);
+  if (postModal) postModal.addEventListener("click", (e) => { if (e.target === postModal) closePostSettings(); });
+
 
     // Gate UI (full screen) bindings
   const gateInput = document.getElementById("licenseKeyInput_gate");
