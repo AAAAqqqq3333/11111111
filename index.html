@@ -615,10 +615,10 @@ h1, .appTitle, #appTitle{
     .hc-modal-backdrop{
       position: fixed; inset: 0;
       display: none;
-      background: rgba(0,0,0,.45);
+      background: rgba(0,0,0,0.75);
       backdrop-filter: blur(10px);
       -webkit-backdrop-filter: blur(10px);
-      z-index: 9999;
+      z-index: 999999;
       padding: 16px;
     }
     .hc-modal-backdrop.show{ display:block; }
@@ -631,7 +631,37 @@ h1, .appTitle, #appTitle{
       box-shadow: 0 20px 80px rgba(0,0,0,.55), 0 0 0 1px rgba(0,229,255,.08) inset;
       overflow: hidden;
     }
-    .hc-modal-head{
+    
+/* === v11 readability & contrast fixes (mobile) === */
+.hc-modal-backdrop{ backdrop-filter: blur(10px) saturate(120%); -webkit-backdrop-filter: blur(10px) saturate(120%); }
+.hc-modal{ box-shadow: 0 24px 60px rgba(0,0,0,0.6); }
+.hc-modal, .hc-modal *{ -webkit-tap-highlight-color: transparent; }
+.hc-modal input, .hc-modal textarea, .hc-modal select{
+  background: rgba(255,255,255,0.08) !important;
+  color: rgba(255,255,255,0.96) !important;
+  border: 1px solid rgba(255,255,255,0.20) !important;
+}
+.hc-modal input::placeholder, .hc-modal textarea::placeholder{
+  color: rgba(255,255,255,0.45) !important;
+}
+.hc-modal .hc-chip{
+  background: rgba(0,0,0,0.25) !important;
+  border-color: rgba(255,255,255,0.18) !important;
+}
+.hc-modal .hc-footer{
+  background: rgba(10,14,20,0.92) !important;
+  border-top: 1px solid rgba(255,255,255,0.12) !important;
+}
+/* Main screen inputs/textarea contrast (the “ふふふ” area etc.) */
+input, textarea, select{
+  background: rgba(255,255,255,0.06);
+  color: rgba(255,255,255,0.96);
+  border: 1px solid rgba(255,255,255,0.18);
+}
+input::placeholder, textarea::placeholder{ color: rgba(255,255,255,0.45); }
+/* Avoid odd bright bands on iOS by preventing white overscroll background */
+html, body{ background-color:#070b12; }
+.hc-modal-head{
       display:flex; align-items:center; justify-content:space-between;
       padding: 14px 14px;
       border-bottom: 1px solid rgba(255,255,255,.10);
@@ -651,6 +681,69 @@ h1, .appTitle, #appTitle{
       color: #fff;
       cursor:pointer;
     }
+
+
+/* === HyperCore UI hotfix (mobile + modal + buttons) === */
+:root{ --hc-safe-top: env(safe-area-inset-top); --hc-safe-bottom: env(safe-area-inset-bottom); }
+button, input, textarea, select{ -webkit-appearance:none; appearance:none; }
+#stickybar{ display:none !important; }
+
+/* Action buttons block */
+.btns{
+  position: sticky;
+  top: calc(var(--hc-safe-top) + 110px);
+  z-index: 20;
+  background: rgba(8,12,18,.35);
+  border: 1px solid rgba(255,255,255,.10);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-radius: 18px;
+  padding: 12px;
+  margin-top: 14px;
+}
+.btns{ display:flex; flex-wrap:wrap; gap:10px; justify-content:flex-start; }
+.btns button{
+  background: rgba(255,255,255,.10) !important;
+  color: #eaf2ff !important;
+  border: 1px solid rgba(255,255,255,.14) !important;
+  border-radius: 16px !important;
+  padding: 12px 14px !important;
+  font-weight: 800;
+  box-shadow: 0 10px 30px rgba(0,0,0,.25);
+}
+.btns button:disabled{ opacity:.45; filter:saturate(.7); }
+@media (max-width: 520px){
+  .btns button{ flex: 1 1 calc(50% - 10px); }
+}
+
+/* Modal readability */
+body.hc-modal-open{ overflow:hidden !important; touch-action:none; }
+#postSettingsModal{
+  background: rgba(0,0,0,.72) !important;
+  backdrop-filter: blur(12px) saturate(1.15);
+  -webkit-backdrop-filter: blur(12px) saturate(1.15);
+}
+#postSettingsModal .modal{
+  background: rgba(10,14,20,.92) !important;
+  border: 1px solid rgba(255,255,255,.14) !important;
+  box-shadow: 0 20px 80px rgba(0,0,0,.55);
+}
+#postSettingsModal .modal .modal-body{
+  max-height: min(72vh, 720px);
+  overflow:auto;
+  padding-bottom: calc(18px + var(--hc-safe-bottom));
+}
+#postSettingsModal .modal .modal-footer{
+  position: sticky;
+  bottom: 0;
+  background: rgba(10,14,20,.92);
+  padding-top: 12px;
+  padding-bottom: calc(10px + var(--hc-safe-bottom));
+  border-top: 1px solid rgba(255,255,255,.10);
+}
+
+/* Output area */
+#output{ min-height: 180px; line-height: 1.6; }
 
 </style>
 
@@ -717,7 +810,6 @@ h1, .appTitle, #appTitle{
   
   <div class="tabs" id="tabs">
     <button class="tabbtn active" type="button" data-page="pageMain">投稿生成</button>
-    <button class="tabbtn" type="button" data-page="pageAccounts">アカウント</button>
     <button class="tabbtn" type="button" data-page="pageTelegram">Telegram</button>
   </div>
 
@@ -799,6 +891,18 @@ h1, .appTitle, #appTitle{
 
   <div class="out" id="output"></div>
 
+
+
+  <details class="card" id="inlineAccounts" style="margin-top:14px;">
+    <summary style="cursor:pointer; font-      </div>
+      </div>
+    </div>
+  </div> <!-- /pageAccounts -->
+
+
+  
+    </div>
+  </details>
 
   </div> <!-- /pageMain -->
 
@@ -2373,6 +2477,17 @@ function openModal(){
     });
   })();
 
+
+
+// === HyperCore UI hotfix hooks ===
+function hcSetModalOpen(isOpen){
+  document.body.classList.toggle('hc-modal-open', !!isOpen);
+}
+function hcScrollToOutput(){
+  const out = document.getElementById('output');
+  if(!out) return;
+  setTimeout(()=>{ out.scrollIntoView({behavior:'smooth', block:'start'}); }, 50);
+}
 </script>
 
 
@@ -2392,3 +2507,6 @@ function openModal(){
 
 </body>
 </html>
+
+    // auto-scroll to results after generation
+    hcScrollToOutput();
