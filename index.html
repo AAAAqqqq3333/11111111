@@ -615,7 +615,7 @@ h1, .appTitle, #appTitle{
     .hc-modal-backdrop{
       position: fixed; inset: 0;
       display: none;
-      background: rgba(0,0,0,0.75);
+      background: rgba(0,0,0,0.82);
       backdrop-filter: blur(10px);
       -webkit-backdrop-filter: blur(10px);
       z-index: 999999;
@@ -724,7 +724,7 @@ body.hc-modal-open{ overflow:hidden !important; touch-action:none; }
   -webkit-backdrop-filter: blur(12px) saturate(1.15);
 }
 #postSettingsModal .modal{
-  background: rgba(10,14,20,.92) !important;
+  background: rgba(10,14,20,.96) !important;
   border: 1px solid rgba(255,255,255,.14) !important;
   box-shadow: 0 20px 80px rgba(0,0,0,.55);
 }
@@ -744,6 +744,76 @@ body.hc-modal-open{ overflow:hidden !important; touch-action:none; }
 
 /* Output area */
 #output{ min-height: 180px; line-height: 1.6; }
+
+
+/* === Output cards (glass) === */
+.outCard{
+  border: 1px solid rgba(255,255,255,.14);
+  border-radius: 16px;
+  padding: 12px;
+  background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.06));
+  box-shadow: 0 14px 40px rgba(0,0,0,.45);
+  margin: 12px 0;
+}
+.outMeta{ display:flex; gap:10px; align-items:center; margin-bottom:10px; flex-wrap:wrap; }
+.outBadge{
+  font-weight: 800;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,.14);
+  background: rgba(0,0,0,.18);
+}
+.outCount{ opacity:.85; font-weight: 700; }
+.outText{
+  border-radius: 14px;
+  padding: 12px;
+  border: 1px solid rgba(255,255,255,.12);
+  background: rgba(10,14,20,.70);
+  color: rgba(255,255,255,.96);
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.outActions{ margin-top:10px; display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+.outActions .btn{ padding: 10px 14px; border-radius: 14px; }
+.outActions .btn.secondary{
+  background: rgba(255,255,255,.10);
+  border: 1px solid rgba(255,255,255,.14);
+  color: rgba(255,255,255,.92);
+}
+.outActions .btn.primary{
+  background: linear-gradient(90deg, rgba(0,229,255,.20), rgba(166,0,255,.18));
+  border: 1px solid rgba(0,229,255,.25);
+  color: rgba(255,255,255,.96);
+}
+
+/* === Details/accordion affordance (accounts) === */
+details.hc-acc details, details.hc-acc{ width:100%; }
+details.hc-acc > summary{
+  list-style: none;
+  cursor: pointer;
+  user-select: none;
+  display:flex;
+  align-items:center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 14px 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(255,255,255,.12);
+  background: rgba(0,0,0,.14);
+}
+details.hc-acc > summary::-webkit-details-marker{ display:none; }
+.hc-acc-summary-title{ font-weight: 900; letter-spacing:.02em; }
+.hc-acc-summary-sub{ opacity:.75; font-size: 12px; margin-left: 10px; }
+.hc-acc-summary-right{ display:flex; align-items:center; gap:10px; opacity:.9; }
+.hc-acc-chevron{
+  width: 10px; height: 10px;
+  border-right: 2px solid rgba(255,255,255,.85);
+  border-bottom: 2px solid rgba(255,255,255,.85);
+  transform: rotate(45deg);
+  transition: transform .18s ease;
+}
+details.hc-acc[open] .hc-acc-chevron{ transform: rotate(-135deg); }
 
 </style>
 
@@ -1347,72 +1417,81 @@ async function checkLicense() {
     return (text || "").length;
   }
 
-  function renderOutput(posts) {
-    LAST_POSTS = posts.slice();
-    const out = $("output");
-    out.innerHTML = "";
-    let over = 0;
-    let maxLen = 0;
-
-    posts.forEach((p, idx) => {
-      const div = document.createElement("div");
-      div.className = "item";
-
-      const pre = document.createElement("pre");
-      pre.textContent = p;
-
-      const len = countXChars(p);
-      maxLen = Math.max(maxLen, len);
-      const remain = 280 - len;
-      if (remain < 0) over++;
-
-      const meta = document.createElement("div");
-      meta.className = "meta";
-      const b1 = document.createElement("span");
-      b1.className = "badge" + (remain < 0 ? " bad" : "");
-      b1.textContent = `${len}文字（残り${remain}）`;
-      const b2 = document.createElement("span");
-      b2.className = "badge";
-      b2.textContent = `#${idx+1}`;
-      meta.appendChild(b2);
-      meta.appendChild(b1);
-
-      const btn = document.createElement("button");
-      btn.textContent = "コピー";
-      btn.className = "secondary";
-      btn.style.marginTop = "8px";
-      btn.addEventListener("click", async () => {
-        try {
-          await navigator.clipboard.writeText(p);
-          btn.textContent = "コピーした";
-          setTimeout(()=> btn.textContent="コピー", 900);
-        } catch {
-          // fallback
-          const ta = document.createElement("textarea");
-          ta.value = p;
-          document.body.appendChild(ta);
-          ta.select();
-          document.execCommand("copy");
-          document.body.removeChild(ta);
-          btn.textContent = "コピーした";
-          setTimeout(()=> btn.textContent="コピー", 900);
-        }
-      });
-
-      div.appendChild(pre);
-      div.appendChild(meta);
-      div.appendChild(btn);
-      out.appendChild(div);
-    });
-
-    const info = $("xCharInfo");
-    if (info) {
-      const warn = over ? ` / 280超え: ${over}件` : "";
-      info.textContent = posts.length ? `最大文字数: ${maxLen}文字${warn}` : "";
-    }
+  
+function renderOutput(items){
+  const out = $('output');
+  out.innerHTML = '';
+  if(!items || !items.length){
+    out.innerHTML = '<div class="muted">出力がありません</div>';
+    return;
   }
 
-  function generatePosts({ shuffle=false } = {}) {
+  items.forEach((text, idx) => {
+    const card = document.createElement('div');
+    card.className = 'outCard';
+
+    const meta = document.createElement('div');
+    meta.className = 'outMeta';
+
+    const badge = document.createElement('span');
+    badge.className = 'outBadge';
+    badge.textContent = `#${idx+1}`;
+    meta.appendChild(badge);
+
+    const len = (text||'').length;
+    const remain = Math.max(0, 280 - len);
+    const count = document.createElement('span');
+    count.className = 'outCount';
+    count.textContent = `${len}文字（残り${remain}）`;
+    meta.appendChild(count);
+
+    card.appendChild(meta);
+
+    const body = document.createElement('div');
+    body.className = 'outText';
+    body.textContent = text || '';
+    card.appendChild(body);
+
+    const actions = document.createElement('div');
+    actions.className = 'outActions';
+
+    const btnCopy = document.createElement('button');
+    btnCopy.className = 'btn secondary';
+    btnCopy.textContent = 'コピー';
+    btnCopy.onclick = async () => {
+      try{
+        await navigator.clipboard.writeText(text || '');
+        if(typeof hcToast === 'function') hcToast('コピーしました', true);
+      }catch(e){
+        // fallback
+        const ta = document.createElement('textarea');
+        ta.value = text || '';
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        ta.remove();
+        if(typeof hcToast === 'function') hcToast('コピーしました', true);
+      }
+    };
+    actions.appendChild(btnCopy);
+
+    const btnPost = document.createElement('button');
+    btnPost.className = 'btn primary';
+    btnPost.textContent = 'Xに投稿';
+    btnPost.onclick = () => {
+      const url = 'https://twitter.com/intent/tweet?text=' + encodeURIComponent(text || '');
+      window.open(url, '_blank', 'noopener');
+      if(typeof hcToast === 'function') hcToast('投稿画面を開きました', true);
+    };
+    actions.appendChild(btnPost);
+
+    card.appendChild(actions);
+    out.appendChild(card);
+  });
+}
+
+
+function generatePosts({ shuffle=false } = {}) {
     const tpl = $("templateText").value;
     const vars = extractVars(tpl);
     const maxGen = Math.max(1, Math.min(200, parseInt($("maxGen").value || "30", 10)));
@@ -2507,6 +2586,3 @@ function hcScrollToOutput(){
 
 </body>
 </html>
-
-    // auto-scroll to results after generation
-    hcScrollToOutput();
