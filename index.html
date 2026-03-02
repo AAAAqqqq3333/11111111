@@ -894,6 +894,28 @@ details.hc-acc[open] .hc-acc-chevron{ transform: rotate(-135deg); }
 </style>
 
 <script>
+
+function cleanValue(v){
+  if(v === undefined || v === null) return undefined;
+  const s = String(v).trim();
+  if(!s) return undefined;
+  const low = s.toLowerCase();
+  if(["nodata","no data","null","undefined","-","なし"].includes(low)){
+    return undefined;
+  }
+
+
+function removeUndefinedFields(obj){
+  Object.keys(obj).forEach(k=>{
+    if(obj[k] === undefined){
+      delete obj[k];
+    }
+  });
+  return obj;
+}
+  return s;
+}
+
 // ===== Ensure stable deviceId =====
 (function(){
   try{
