@@ -892,6 +892,11 @@ details.hc-acc[open] .hc-acc-chevron{ transform: rotate(-135deg); }
 }
 
 .hc-title{
+    display:flex;align-items:center;gap:10px;
+  }
+  .hc-logo{width:22px;height:22px;border-radius:6px;box-shadow:0 0 0 1px rgba(255,255,255,.18) inset;}
+
+  .hc-title{
   font-weight:900;
   letter-spacing:.06em;
 }
@@ -970,7 +975,7 @@ function removeUndefinedFields(obj){
 <body>
 
 <header class="hc-header">
-  <div class="hc-title">SNS Hyper Core</div>
+  <div class="hc-title"><img class="hc-logo" src="icon-180.png" alt="Hyper Core" />SNS Hyper Core</div>
   <button id="topGearBtn" type="button" aria-label="settings">⚙️</button>
 </header>
 
@@ -1003,7 +1008,6 @@ function removeUndefinedFields(obj){
   <div id="appContainer">
 
   <div class="topbar">
-    <h1>SNS Hyper Core</h1>
 <div class="lockbar">
       <span class="pill" id="licenseStatus">🔒 未認証</span>
       <button class="secondary" id="openLicenseBtn" type="button">ライセンス認証</button>
@@ -2952,56 +2956,23 @@ function hcScrollToOutput(){
 
   // Move accounts card from pageAccounts into drawer
   function mountAccountsIntoDrawer(){
-    const drawerBody = document.getElementById("drawerBody");
+    const drawerBody = document.getElementById("drawerContent");
     const pageAccounts = document.getElementById("pageAccounts");
     if(!drawerBody || !pageAccounts) return;
-
-    const card = pageAccounts.querySelector(".card") || pageAccounts;
-    if(card && !drawerBody.contains(card)){
-      drawerBody.appendChild(card);
-    }
-    // hide the original accounts page to keep nav clean
-    pageAccounts.style.display = "none";
-
-    // remove accounts tab button if exists
-    document.querySelectorAll(".tabbtn").forEach(b=>{
-      if((b.dataset.page||"") === "pageAccounts") b.remove();
-    });
-
-    // add "使用" button in each row (if table exists)
-    // We'll patch renderAccounts if it exists
+    // move once
+    if(pageAccounts.dataset.mounted === "1") return;
+    pageAccounts.dataset.mounted = "1";
+    // show inside drawer
+    pageAccounts.style.display = "block";
+    pageAccounts.style.maxHeight = "none";
+    pageAccounts.style.overflow = "visible";
+    pageAccounts.classList.add("in-drawer");
+    drawerBody.innerHTML = "";
+    drawerBody.appendChild(pageAccounts);
+    // hide original tab button if exists (accounts tab may remain elsewhere)
     try{
-      if(typeof window.renderAccounts === "function" && !window.__hcPatchedAccounts){
-        const orig = window.renderAccounts;
-        window.renderAccounts = function(){
-          orig();
-          // After render, inject "使用" button per row
-          const tbody = document.getElementById("accTbody");
-          if(!tbody) return;
-          const arr = loadAccountsSafe();
-          const sel = getSelectedId();
-          Array.from(tbody.querySelectorAll("tr")).forEach((tr, idx)=>{
-            const a = arr[idx];
-            if(!a) return;
-            const btns = tr.querySelector(".btns") || tr.querySelector("td:last-child");
-            if(!btns) return;
-            if(tr.querySelector(".hcUseBtn")) return;
-            const use = document.createElement("button");
-            use.type="button";
-            use.className = "primary hcUseBtn";
-            use.textContent = (a.id===sel) ? "使用中" : "使用";
-            use.addEventListener("click", ()=>{
-              setSelectedId(a.id);
-              updateCurrentAccountUI();
-              // update labels on buttons
-              Array.from(tbody.querySelectorAll(".hcUseBtn")).forEach(b=>b.textContent="使用");
-              use.textContent="使用中";
-            });
-            btns.prepend(use);
-          });
-        };
-        window.__hcPatchedAccounts = true;
-      }
+      const tab = document.getElementById("tabAccounts");
+      if(tab) tab.style.display = "none";
     }catch(e){}
   }
 
@@ -3016,18 +2987,26 @@ function hcScrollToOutput(){
     document.body.style.overflow = "";
   }
 
-  document.addEventListener("click", (e)=>{
-      const t = e.target;
-      if(!(t instanceof HTMLElement)) return;
-      if(t.id === "topGearBtn") openDrawer();
-      if(t.id === "drawerClose" || t.id === "drawerOverlay") closeDrawer();
-    }, true);
-  } else {
+  // keep drawer content interactive on iOS: prevent overlay from stealing taps
+  const gear = document.getElementById("topGearBtn");
+  gear?.addEventListener("click", (e)=>{ e.preventDefault(); e.stopPropagation(); openDrawer(); });
+  gear?.addEventListener("touchend", (e)=>{ e.preventDefault(); e.stopPropagation(); openDrawer(); }, {passive:false});
+
+  document.getElementById("drawerClose")?.addEventListener("click", (e)=>{ e.preventDefault(); e.stopPropagation(); closeDrawer(); });
+  document.getElementById("drawerOverlay")?.addEventListener("click", (e)=>{ closeDrawer(); });
+
+  // mount + refresh when ready
+  const boot = ()=>{
     mountAccountsIntoDrawer();
-    updateCurrentAccountUI();
+    try{ if(typeof window.updateCurrentAccountUI==="function") window.updateCurrentAccountUI(); }catch(e){}
     try{ if(typeof window.renderAccounts==="function") window.renderAccounts(); }catch(e){}
+  };
+
+  if(document.readyState === "loading"){
+    document.addEventListener("DOMContentLoaded", boot);
+  } else {
+    boot();
   }
-})();
 </script>
 
 
