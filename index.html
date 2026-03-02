@@ -905,6 +905,14 @@ details.hc-acc[open] .hc-acc-chevron{ transform: rotate(-135deg); }
   color:#fff;
 }
 
+
+/* === v19 quick fixes === */
+html, body { margin:0 !important; padding:0 !important; }
+body { min-height:100vh; }
+.hc-header { position: sticky; top:0; z-index: 50; border-radius: 0 0 18px 18px; margin: 0; }
+.hc-header::before{ content:""; position:absolute; inset:0; border-radius: inherit; background: rgba(0,0,0,.32); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); z-index:-1; }
+.hc-header{ background: transparent !important; }
+
 </style>
 
 <script>
@@ -3019,6 +3027,35 @@ function hcScrollToOutput(){
     updateCurrentAccountUI();
     try{ if(typeof window.renderAccounts==="function") window.renderAccounts(); }catch(e){}
   }
+})();
+</script>
+
+
+<script>
+/* === v19: make top gear always work === */
+(function(){
+  function openDrawer(){
+    document.getElementById("accountsDrawer")?.classList.add("show");
+    document.getElementById("drawerOverlay")?.classList.add("show");
+    document.body.style.overflow = "hidden";
+  }
+  function closeDrawer(){
+    document.getElementById("accountsDrawer")?.classList.remove("show");
+    document.getElementById("drawerOverlay")?.classList.remove("show");
+    document.body.style.overflow = "";
+  }
+  const gear = document.getElementById("topGearBtn");
+  if(gear){
+    gear.addEventListener("click", (e)=>{ e.preventDefault(); e.stopPropagation(); openDrawer(); }, {passive:false});
+    // touch fallback
+    gear.addEventListener("touchend", (e)=>{ e.preventDefault(); e.stopPropagation(); openDrawer(); }, {passive:false});
+  }
+  const overlay = document.getElementById("drawerOverlay");
+  overlay?.addEventListener("click", ()=>closeDrawer());
+  document.getElementById("drawerClose")?.addEventListener("click", ()=>closeDrawer());
+
+  // escape to close (desktop)
+  document.addEventListener("keydown", (e)=>{ if(e.key==="Escape") closeDrawer(); });
 })();
 </script>
 
