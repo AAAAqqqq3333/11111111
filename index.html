@@ -815,6 +815,82 @@ details.hc-acc > summary::-webkit-details-marker{ display:none; }
 }
 details.hc-acc[open] .hc-acc-chevron{ transform: rotate(-135deg); }
 
+
+/* === FAB + Drawer (Accounts) === */
+#fabSettings{
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  width: 54px;
+  height: 54px;
+  border-radius: 18px;
+  border: 1px solid rgba(255,255,255,.16);
+  background: rgba(255,255,255,.10);
+  color: #fff;
+  font-size: 22px;
+  font-weight: 800;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  box-shadow: 0 14px 40px rgba(0,0,0,.35);
+  z-index: 9998;
+}
+#fabSettings:active{ transform: translateY(1px); }
+
+#drawerOverlay{
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.55);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: none;
+  z-index: 9997;
+}
+#drawerOverlay.show{ display:block; }
+
+#accountsDrawer{
+  position: fixed;
+  top: 0; right: 0;
+  height: 100%;
+  width: min(92vw, 520px);
+  transform: translateX(105%);
+  transition: transform .22s ease;
+  z-index: 9999;
+  background: rgba(12,14,20,.92);
+  border-left: 1px solid rgba(255,255,255,.10);
+  box-shadow: -20px 0 80px rgba(0,0,0,.55);
+  display: flex;
+  flex-direction: column;
+}
+#accountsDrawer.show{ transform: translateX(0); }
+
+.drawerHead{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding: 14px 14px;
+  border-bottom: 1px solid rgba(255,255,255,.08);
+}
+.drawerTitle{
+  font-weight: 900;
+  letter-spacing: .06em;
+  font-size: 13px;
+  opacity: .95;
+}
+.iconBtn{
+  width: 38px; height: 38px;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,.14);
+  background: rgba(255,255,255,.08);
+  color: #fff;
+  font-weight: 900;
+}
+.drawerBody{
+  padding: 14px;
+  overflow: auto;
+}
+
+/* Make summary caret unnecessary (we removed details) */
+
 </style>
 
 <script>
@@ -961,20 +1037,17 @@ details.hc-acc[open] .hc-acc-chevron{ transform: rotate(-135deg); }
 
   <div class="out" id="output"></div>
 
-
-
-  <details class="card" id="inlineAccounts" style="margin-top:14px;">
-    <summary style="cursor:pointer; font-      </div>
-      </div>
+</div>
+  <div class="card" id="currentAccCard" style="margin-top:12px; display:flex; align-items:center; justify-content:space-between; gap:12px;">
+    <div>
+      <div class="muted" style="font-size:12px;">現在のアカウント</div>
+      <div id="currentAccText" style="font-weight:800; letter-spacing:.02em;">未選択</div>
     </div>
-  </div> <!-- /pageAccounts -->
-
-
-  
+    <div class="btns" style="justify-content:flex-end;">
+      <button type="button" class="secondary" id="btnOpenAccounts">管理/切替</button>
     </div>
-  </details>
-
-  </div> <!-- /pageMain -->
+  </div>
+ <!-- /pageMain -->
 
   <div class="page" id="pageAccounts">
     <div class="card">
@@ -2583,6 +2656,140 @@ function hcScrollToOutput(){
       </div>
     </div>
   </div>
+
+
+  <!-- Floating Settings (Accounts Drawer) -->
+  <button id="fabSettings" type="button" aria-label="settings" title="設定/アカウント">⚙</button>
+
+  <div id="drawerOverlay" aria-hidden="true"></div>
+  <aside id="accountsDrawer" aria-hidden="true">
+    <div class="drawerHead">
+      <div class="drawerTitle">設定 / アカウント</div>
+      <button id="drawerClose" type="button" class="iconBtn" aria-label="close">✕</button>
+    </div>
+    <div class="drawerBody" id="drawerBody"></div>
+  </aside>
+
+
+<script>
+// === Accounts Drawer Wiring + Selected Account ===
+(function(){
+  const SEL_LS = "x_accounts_selected_v1";
+
+  function getSelectedId(){ try{ return localStorage.getItem(SEL_LS)||""; }catch(e){ return ""; } }
+  function setSelectedId(id){ try{ localStorage.setItem(SEL_LS, id||""); }catch(e){} }
+
+  function loadAccountsSafe(){
+    try{
+      const raw = localStorage.getItem("x_accounts_plain_v1");
+      if(!raw) return [];
+      const arr = JSON.parse(raw);
+      return Array.isArray(arr) ? arr : [];
+    }catch(e){ return []; }
+  }
+
+  function updateCurrentAccountUI(){
+    const el = document.getElementById("currentAccText");
+    if(!el) return;
+    const id = getSelectedId();
+    const arr = loadAccountsSafe();
+    const a = arr.find(x=>x.id===id);
+    if(a){
+      const xid = (a.xid||"").trim();
+      el.textContent = (a.label ? a.label + " / " : "") + (xid ? ("@" + xid.replace(/^@/,"")) : "IDなし");
+    } else {
+      el.textContent = "未選択";
+    }
+  }
+
+  // Move accounts card from pageAccounts into drawer
+  function mountAccountsIntoDrawer(){
+    const drawerBody = document.getElementById("drawerBody");
+    const pageAccounts = document.getElementById("pageAccounts");
+    if(!drawerBody || !pageAccounts) return;
+
+    const card = pageAccounts.querySelector(".card") || pageAccounts;
+    if(card && !drawerBody.contains(card)){
+      drawerBody.appendChild(card);
+    }
+    // hide the original accounts page to keep nav clean
+    pageAccounts.style.display = "none";
+
+    // remove accounts tab button if exists
+    document.querySelectorAll(".tabbtn").forEach(b=>{
+      if((b.dataset.page||"") === "pageAccounts") b.remove();
+    });
+
+    // add "使用" button in each row (if table exists)
+    // We'll patch renderAccounts if it exists
+    try{
+      if(typeof window.renderAccounts === "function" && !window.__hcPatchedAccounts){
+        const orig = window.renderAccounts;
+        window.renderAccounts = function(){
+          orig();
+          // After render, inject "使用" button per row
+          const tbody = document.getElementById("accTbody");
+          if(!tbody) return;
+          const arr = loadAccountsSafe();
+          const sel = getSelectedId();
+          Array.from(tbody.querySelectorAll("tr")).forEach((tr, idx)=>{
+            const a = arr[idx];
+            if(!a) return;
+            const btns = tr.querySelector(".btns") || tr.querySelector("td:last-child");
+            if(!btns) return;
+            if(tr.querySelector(".hcUseBtn")) return;
+            const use = document.createElement("button");
+            use.type="button";
+            use.className = "primary hcUseBtn";
+            use.textContent = (a.id===sel) ? "使用中" : "使用";
+            use.addEventListener("click", ()=>{
+              setSelectedId(a.id);
+              updateCurrentAccountUI();
+              // update labels on buttons
+              Array.from(tbody.querySelectorAll(".hcUseBtn")).forEach(b=>b.textContent="使用");
+              use.textContent="使用中";
+            });
+            btns.prepend(use);
+          });
+        };
+        window.__hcPatchedAccounts = true;
+      }
+    }catch(e){}
+  }
+
+  function openDrawer(){
+    document.getElementById("accountsDrawer")?.classList.add("show");
+    document.getElementById("drawerOverlay")?.classList.add("show");
+    document.body.style.overflow = "hidden";
+  }
+  function closeDrawer(){
+    document.getElementById("accountsDrawer")?.classList.remove("show");
+    document.getElementById("drawerOverlay")?.classList.remove("show");
+    document.body.style.overflow = "";
+  }
+
+  document.addEventListener("click", (e)=>{
+    const t = e.target;
+    if(!(t instanceof HTMLElement)) return;
+    if(t.id === "fabSettings" || t.id === "btnOpenAccounts") openDrawer();
+    if(t.id === "drawerClose" || t.id === "drawerOverlay") closeDrawer();
+  }, true);
+
+  // mount after DOM ready
+  if(document.readyState === "loading"){
+    document.addEventListener("DOMContentLoaded", ()=>{
+      mountAccountsIntoDrawer();
+      updateCurrentAccountUI();
+      // call renderAccounts if available to ensure list shows
+      try{ if(typeof window.renderAccounts==="function") window.renderAccounts(); }catch(e){}
+    });
+  } else {
+    mountAccountsIntoDrawer();
+    updateCurrentAccountUI();
+    try{ if(typeof window.renderAccounts==="function") window.renderAccounts(); }catch(e){}
+  }
+})();
+</script>
 
 </body>
 </html>
