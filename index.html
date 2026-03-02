@@ -817,24 +817,8 @@ details.hc-acc[open] .hc-acc-chevron{ transform: rotate(-135deg); }
 
 
 /* === FAB + Drawer (Accounts) === */
-#fabSettings{
-  position: fixed;
-  right: 18px;
-  bottom: 18px;
-  width: 54px;
-  height: 54px;
-  border-radius: 18px;
-  border: 1px solid rgba(255,255,255,.16);
-  background: rgba(255,255,255,.10);
-  color: #fff;
-  font-size: 22px;
-  font-weight: 800;
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-  box-shadow: 0 14px 40px rgba(0,0,0,.35);
-  z-index: 9998;
-}
-#fabSettings:active{ transform: translateY(1px); }
+
+
 
 #drawerOverlay{
   position: fixed;
@@ -891,31 +875,66 @@ details.hc-acc[open] .hc-acc-chevron{ transform: rotate(-135deg); }
 
 /* Make summary caret unnecessary (we removed details) */
 
+
+/* === Top Header === */
+.hc-header{
+  position: sticky;
+  top: 0;
+  z-index: 9999;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  padding:14px 16px;
+  background: rgba(15,18,25,.85);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border-bottom:1px solid rgba(255,255,255,.08);
+}
+
+.hc-title{
+  font-weight:900;
+  letter-spacing:.06em;
+}
+
+#topGearBtn{
+  font-size:20px;
+  background:transparent;
+  border:1px solid rgba(255,255,255,.18);
+  border-radius:12px;
+  padding:6px 10px;
+  color:#fff;
+}
+
 </style>
 
 <script>
 
 function cleanValue(v){
-  if(v === undefined || v === null) return undefined;
-  const s = String(v).trim();
+  if(v === null || v === undefined) return undefined;
+  let s = String(v).trim();
   if(!s) return undefined;
-  const low = s.toLowerCase();
-  if(["nodata","no data","null","undefined","-","なし"].includes(low)){
-    return undefined;
+
+  // Treat special placeholders as empty (ignore them)
+  const up = s.toUpperCase();
+  if(up === "NODATA" || up === "NO DATA" || up === "NULL" || up === "NONE" || up === "-") return undefined;
+
+  // Strip surrounding quotes
+  if((s.startsWith('"') && s.endsWith('"')) || (s.startsWith("'") && s.endsWith("'"))){
+    s = s.slice(1, -1).trim();
+    if(!s) return undefined;
   }
-
-
-function removeUndefinedFields(obj){
-  Object.keys(obj).forEach(k=>{
-    if(obj[k] === undefined){
-      delete obj[k];
-    }
-  });
-  return obj;
-}
   return s;
 }
 
+function removeUndefinedFields(obj){
+  const out = {};
+  for(const k in obj){
+    if(Object.prototype.hasOwnProperty.call(obj,k) && obj[k] !== undefined){
+      out[k] = obj[k];
+    }
+  }
+  return out;
+}
 // ===== Ensure stable deviceId =====
 (function(){
   try{
@@ -937,9 +956,16 @@ function removeUndefinedFields(obj){
 })();
 </script>
 
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 </head>
 
 <body>
+
+<header class="hc-header">
+  <div class="hc-title">SNS Hyper Core</div>
+  <button id="topGearBtn" type="button" aria-label="settings">⚙️</button>
+</header>
+
 
 <!-- ===== Startup Logo Overlay (A) ===== -->
 <div id="startupOverlay" aria-hidden="true">
@@ -2066,44 +2092,54 @@ $("activateBtn").addEventListener("click", async () => {
 
   
     // ===== CSV/TSV import for accounts (Spreadsheet) =====
-    function hcParseDelimited(text) {
-      const t = (text || "").replace(/\r\n/g, "\n").replace(/\r/g, "\n").trim();
-      if (!t) return { headers: [], rows: [] };
-      const firstLine = t.split("\n")[0] || "";
-      const delim = firstLine.includes("\t") ? "\t" : ",";
-      const lines = t.split("\n").filter(l => l.trim() !== "");
-      const parseLine = (line) => {
-        const out = [];
-        let cur = "", inQ = false;
-        for (let i = 0; i < line.length; i++) {
-          const ch = line[i];
-          if (ch === '"') {
-            if (inQ && line[i+1] === '"') { cur += '"'; i++; }
-            else { inQ = !inQ; }
-          } else if (!inQ && ch === delim) {
-            out.push(cur.trim());
-            cur = "";
-          } else {
-            cur += ch;
-          }
-        }
-        out.push(cur.trim());
-        return out;
-      };
-      const headerCells = parseLine(lines[0]).map(x => x.replace(/^\uFEFF/, "").trim());
-      const hasHeader = headerCells.some(h => /label|x_id|xid|id|pass|password|mail|email|memo|備考|ラベル|アカウント|パス/i.test(h));
-      const headers = hasHeader ? headerCells : ["label","x_id","x_pass","mail","mail_pass","memo"];
-      const startIdx = hasHeader ? 1 : 0;
-      const rows = [];
-      for (let i = startIdx; i < lines.length; i++) {
-        const cells = parseLine(lines[i]);
-        if (!cells.some(c => (c || "").trim() !== "")) continue;
-        const obj = {};
-        for (let c = 0; c < headers.length; c++) obj[headers[c]] = (cells[c] ?? "").trim();
-        rows.push(obj);
+    function hcParseDelimited(text){
+  const t = String(text||"").replace(/\r\n/g,"\n").replace(/\r/g,"\n").trim();
+  if(!t) return { rows: [], warnings: [] };
+
+  // detect delimiter
+  const firstLine = t.split("\n")[0] || "";
+  const delim = (firstLine.split("\t").length > firstLine.split(",").length) ? "\t" : ",";
+
+  const lines = t.split("\n").filter(l => l.trim().length > 0);
+  const raw = lines.map(line => {
+    // naive split (good enough for typical spreadsheets export)
+    return line.split(delim).map(x => String(x ?? "").trim());
+  });
+
+  const warnings = [];
+  const hasHeader = raw.length >= 2 && raw[0].some(h => /[A-Za-z_]/.test(h)) && !raw[0].every(h => /^\d+$/.test(h));
+  const header = hasHeader ? raw[0].map(h => (h||"").trim().toLowerCase()) : null;
+
+  // Our expected column order (when headerless). We "pack" values by removing NODATA/empty cells first.
+  const DEFAULT_COLS = ["label","xid","xp","mail","mp","memo"];
+
+  const dataLines = hasHeader ? raw.slice(1) : raw;
+  const rows = [];
+
+  for(const cells of dataLines){
+    if(hasHeader){
+      const obj = {};
+      for(let c=0;c<header.length;c++){
+        const key = header[c] || "";
+        if(!key) continue;
+        const v = cleanValue(cells[c]);
+        if(v !== undefined) obj[key] = v;
       }
-      return { headers, rows };
+      rows.push(removeUndefinedFields(obj));
+    }else{
+      const packed = cells.map(cleanValue).filter(v => v !== undefined);
+      const obj = {};
+      for(let i=0;i<DEFAULT_COLS.length;i++){
+        const v = packed[i];
+        if(v !== undefined) obj[DEFAULT_COLS[i]] = v;
+      }
+      rows.push(removeUndefinedFields(obj));
     }
+  }
+
+  return { rows, warnings };
+}
+
 
     function hcMapAccountRow(row) {
       const get = (...keys) => {
@@ -2220,7 +2256,23 @@ if (accEls.exportBtn) accEls.exportBtn.addEventListener("click", () => {
       const file = e.target.files && e.target.files[0];
       if (!file) return;
       try {
-        const text = await file.text();
+        let text = "";
+        const name = (file.name || "").toLowerCase();
+        if (name.endsWith(".xlsx") || name.endsWith(".xls")) {
+          if (typeof XLSX === "undefined") {
+            hcToast("XLSX読み込みライブラリが未読込です。CSVで保存して読み込んでください。", "warn");
+            return;
+          }
+          const buf = await file.arrayBuffer();
+          const wb = XLSX.read(buf, { type: "array" });
+          const sheetName = wb.SheetNames[0];
+          const ws = wb.Sheets[sheetName];
+          // Convert to CSV to reuse the same parser
+          text = XLSX.utils.sheet_to_csv(ws);
+        } else {
+          text = await file.text();
+        }
+
         const parsed = hcParseDelimited(text);
         if (!parsed.rows.length) {
           hcToast("CSVにデータが見つかりませんでした", "warn");
@@ -2847,7 +2899,7 @@ function hcScrollToOutput(){
 
 
   <!-- Floating Settings (Accounts Drawer) -->
-  <button id="fabSettings" type="button" aria-label="settings" title="設定/アカウント">⚙</button>
+  
 
   <div id="drawerOverlay" aria-hidden="true"></div>
   <aside id="accountsDrawer" aria-hidden="true">
@@ -2957,20 +3009,11 @@ function hcScrollToOutput(){
   }
 
   document.addEventListener("click", (e)=>{
-    const t = e.target;
-    if(!(t instanceof HTMLElement)) return;
-    if(t.id === "fabSettings" || t.id === "btnOpenAccounts") openDrawer();
-    if(t.id === "drawerClose" || t.id === "drawerOverlay") closeDrawer();
-  }, true);
-
-  // mount after DOM ready
-  if(document.readyState === "loading"){
-    document.addEventListener("DOMContentLoaded", ()=>{
-      mountAccountsIntoDrawer();
-      updateCurrentAccountUI();
-      // call renderAccounts if available to ensure list shows
-      try{ if(typeof window.renderAccounts==="function") window.renderAccounts(); }catch(e){}
-    });
+      const t = e.target;
+      if(!(t instanceof HTMLElement)) return;
+      if(t.id === "topGearBtn") openDrawer();
+      if(t.id === "drawerClose" || t.id === "drawerOverlay") closeDrawer();
+    }, true);
   } else {
     mountAccountsIntoDrawer();
     updateCurrentAccountUI();
