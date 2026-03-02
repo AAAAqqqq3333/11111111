@@ -1038,15 +1038,9 @@ details.hc-acc[open] .hc-acc-chevron{ transform: rotate(-135deg); }
   <div class="out" id="output"></div>
 
 </div>
-  <div class="card" id="currentAccCard" style="margin-top:12px; display:flex; align-items:center; justify-content:space-between; gap:12px;">
-    <div>
-      <div class="muted" style="font-size:12px;">現在のアカウント</div>
-      <div id="currentAccText" style="font-weight:800; letter-spacing:.02em;">未選択</div>
-    </div>
-    <div class="btns" style="justify-content:flex-end;">
-      <button type="button" class="secondary" id="btnOpenAccounts">管理/切替</button>
-    </div>
-  </div>
+  
+<!-- current account card removed (use gear settings) -->
+>
  <!-- /pageMain -->
 
   <div class="page" id="pageAccounts">
@@ -2507,6 +2501,12 @@ function openModal(){
 
   // Try initial label update (in case no click yet)
   function init(){
+    // Prevent Safari from restoring a weird scroll position on reload/back-forward
+    try{ if('scrollRestoration' in history) history.scrollRestoration = 'manual'; }catch(e){}
+    // Always start at top on open (especially on iOS Safari)
+    requestAnimationFrame(()=>window.scrollTo(0,0));
+    setTimeout(()=>window.scrollTo(0,0), 80);
+
     const btn = findTopButton();
     if(btn) ensureLabel(btn);
   }
