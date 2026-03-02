@@ -1084,6 +1084,9 @@ details.hc-acc[open] .hc-acc-chevron{ transform: rotate(-135deg); }
             <button class="secondary" id="accExportBtn" type="button">エクスポート（JSON）</button>
             <button class="secondary" id="accImportBtn" type="button">インポート（JSON）</button>
             <input id="accImportFile" type="file" accept="application/json" style="display:none;">
+            <button class="secondary" id="accCsvImportBtn" type="button">CSV取込（スプレッドシート）</button>
+            <input id="accCsvFile" type="file" accept=".csv,text/csv,.tsv,text/tab-separated-values,text/plain" style="display:none;">
+            <button class="secondary" id="accCsvExampleBtn" type="button">CSV例コピー</button>
             <button class="danger" id="accDeleteAllBtn" type="button">全削除</button>
           </div>
 
@@ -1879,6 +1882,9 @@ $("activateBtn").addEventListener("click", async () => {
     exportBtn: $("accExportBtn"),
     importBtn: $("accImportBtn"),
     importFile: $("accImportFile"),
+    csvImportBtn: $("accCsvImportBtn"),
+    csvFile: $("accCsvFile"),
+    csvExampleBtn: $("accCsvExampleBtn"),
     delAll: $("accDeleteAllBtn"),
   };
 
@@ -2036,7 +2042,114 @@ $("activateBtn").addEventListener("click", async () => {
 
   if (accEls.clear) accEls.clear.addEventListener("click", accClearForm);
 
-  if (accEls.exportBtn) accEls.exportBtn.addEventListener("click", () => {
+  
+    // ===== CSV/TSV import for accounts (Spreadsheet) =====
+    function hcParseDelimited(text) {
+      const t = (text || "").replace(/\r\n/g, "\n").replace(/\r/g, "\n").trim();
+      if (!t) return { headers: [], rows: [] };
+      const firstLine = t.split("\n")[0] || "";
+      const delim = firstLine.includes("\t") ? "\t" : ",";
+      const lines = t.split("\n").filter(l => l.trim() !== "");
+      const parseLine = (line) => {
+        const out = [];
+        let cur = "", inQ = false;
+        for (let i = 0; i < line.length; i++) {
+          const ch = line[i];
+          if (ch === '"') {
+            if (inQ && line[i+1] === '"') { cur += '"'; i++; }
+            else { inQ = !inQ; }
+          } else if (!inQ && ch === delim) {
+            out.push(cur.trim());
+            cur = "";
+          } else {
+            cur += ch;
+          }
+        }
+        out.push(cur.trim());
+        return out;
+      };
+      const headerCells = parseLine(lines[0]).map(x => x.replace(/^\uFEFF/, "").trim());
+      const hasHeader = headerCells.some(h => /label|x_id|xid|id|pass|password|mail|email|memo|備考|ラベル|アカウント|パス/i.test(h));
+      const headers = hasHeader ? headerCells : ["label","x_id","x_pass","mail","mail_pass","memo"];
+      const startIdx = hasHeader ? 1 : 0;
+      const rows = [];
+      for (let i = startIdx; i < lines.length; i++) {
+        const cells = parseLine(lines[i]);
+        if (!cells.some(c => (c || "").trim() !== "")) continue;
+        const obj = {};
+        for (let c = 0; c < headers.length; c++) obj[headers[c]] = (cells[c] ?? "").trim();
+        rows.push(obj);
+      }
+      return { headers, rows };
+    }
+
+    function hcMapAccountRow(row) {
+      const get = (...keys) => {
+        for (const k of keys) {
+          if (row[k] != null && String(row[k]).trim() !== "") return String(row[k]).trim();
+          const foundKey = Object.keys(row).find(x => x.toLowerCase() === String(k).toLowerCase());
+          if (foundKey && String(row[foundKey]).trim() !== "") return String(row[foundKey]).trim();
+        }
+        return "";
+      };
+      const label = get("label","ラベル","name","名称","アカウント名","account","acct");
+      const x_id  = get("x_id","xid","X ID","x","id","ユーザー","user","ユーザーID","ユーザー名","アカウント","account_id","x_account");
+      const x_pass= get("x_pass","xpass","X PASS","pass","password","パス","パスワード","Xパスワード");
+      const mail  = get("mail","email","メール","メールアドレス","mail_addr","email_addr");
+      const mail_pass = get("mail_pass","mailpass","メールパス","メールパスワード","mail_password","email_password");
+      const memo  = get("memo","note","備考","メモ");
+      const normalized = { label: label || (x_id ? `@${x_id}` : ""), x_id, x_pass, mail, mail_pass, memo };
+      for (const k of Object.keys(normalized)) {
+        if (normalized[k] === "-" || normalized[k] === "—") normalized[k] = "";
+      }
+      return normalized;
+    }
+
+    function hcImportAccountsFromRows(rows) {
+      const list = hcLoadAccounts();
+      let added = 0, updated = 0, skipped = 0;
+
+      const findIndex = (acct) => {
+        const key = (acct.x_id || "").toLowerCase();
+        if (!key) return -1;
+        return list.findIndex(a => (a.x_id || "").toLowerCase() === key);
+      };
+
+      for (const r of rows) {
+        const acct = hcMapAccountRow(r);
+        const meaningful = (acct.x_id || acct.mail || acct.label).trim() !== "";
+        if (!meaningful) { skipped++; continue; }
+
+        const idx = findIndex(acct);
+        if (idx >= 0) {
+          const cur = list[idx];
+          if (acct.label) cur.label = acct.label;
+          if (acct.x_pass) cur.x_pass = acct.x_pass;
+          if (acct.mail) cur.mail = acct.mail;
+          if (acct.mail_pass) cur.mail_pass = acct.mail_pass;
+          if (acct.memo) cur.memo = acct.memo;
+          updated++;
+        } else {
+          if (!acct.x_id) { skipped++; continue; }
+          list.push({
+            id: "acc_" + Math.random().toString(16).slice(2) + Date.now().toString(16),
+            label: acct.label || `@${acct.x_id}`,
+            x_id: acct.x_id,
+            x_pass: acct.x_pass || "",
+            mail: acct.mail || "",
+            mail_pass: acct.mail_pass || "",
+            memo: acct.memo || ""
+          });
+          added++;
+        }
+      }
+
+      hcSaveAccounts(list);
+      hcRenderAccountsList();
+      hcToast(`CSV取込: 追加 ${added} / 更新 ${updated} / スキップ ${skipped}`, (added || updated) ? "success" : "info");
+      return { added, updated, skipped };
+    }
+if (accEls.exportBtn) accEls.exportBtn.addEventListener("click", () => {
     const data = localStorage.getItem(ACC_LS) || "[]";
     const blob = new Blob([data], { type: "application/json" });
     const a = document.createElement("a");
@@ -2077,6 +2190,59 @@ $("activateBtn").addEventListener("click", async () => {
       }
     });
   }
+
+
+  if (accEls.csvImportBtn && accEls.csvFile) {
+    accEls.csvImportBtn.addEventListener("click", () => accEls.csvFile.click());
+    accEls.csvFile.addEventListener("change", async (e) => {
+      const file = e.target.files && e.target.files[0];
+      if (!file) return;
+      try {
+        const text = await file.text();
+        const parsed = hcParseDelimited(text);
+        if (!parsed.rows.length) {
+          hcToast("CSVにデータが見つかりませんでした", "warn");
+        } else {
+          hcImportAccountsFromRows(parsed.rows);
+        }
+      } catch (err) {
+        console.error(err);
+        hcToast("CSV読込に失敗しました", "error");
+      } finally {
+        e.target.value = "";
+      }
+    });
+  }
+
+  if (accEls.csvExampleBtn) {
+    accEls.csvExampleBtn.addEventListener("click", async () => {
+      const sample = [
+        "label,x_id,x_pass,mail,mail_pass,memo",
+        "main,example_id,example_pass,example@mail.com,mail_pass,メモ",
+        "sub,another_id,pass2,,,",
+      ].join("\n");
+      try {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          await navigator.clipboard.writeText(sample);
+          hcToast("CSV例をコピーしました（スプレッドシートに貼り付けOK）", "success");
+        } else {
+          // fallback
+          const ta = document.createElement("textarea");
+          ta.value = sample;
+          ta.style.position = "fixed";
+          ta.style.left = "-9999px";
+          document.body.appendChild(ta);
+          ta.select();
+          document.execCommand("copy");
+          document.body.removeChild(ta);
+          hcToast("CSV例をコピーしました", "success");
+        }
+      } catch (e) {
+        hcToast("コピーできませんでした", "warn");
+      }
+    });
+  }
+
 
   if (accEls.delAll) accEls.delAll.addEventListener("click", () => {
     if (!confirm("保存しているアカウントを全削除しますか？")) return;
