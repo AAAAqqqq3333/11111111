@@ -918,6 +918,14 @@ body { min-height:100vh; }
 .hc-header::before{ content:""; position:absolute; inset:0; border-radius: inherit; background: rgba(0,0,0,.32); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); z-index:-1; }
 .hc-header{ background: transparent !important; }
 
+
+/* --- drawer page visibility fix --- */
+.drawer.open .page { display:block !important; }
+.drawer.open #pageAccounts { display:block !important; }
+.drawer.open #pageAccounts .panel { margin-top: 12px; }
+/* make drawer content scrollable and interactive */
+.drawer .drawerBody { overflow:auto; -webkit-overflow-scrolling: touch; pointer-events:auto; }
+
 </style>
 
 <script>
@@ -3014,15 +3022,29 @@ function hcScrollToOutput(){
 /* === v19: make top gear always work === */
 (function(){
   function openDrawer(){
-    document.getElementById("accountsDrawer")?.classList.add("show");
-    document.getElementById("drawerOverlay")?.classList.add("show");
+    const drawer = document.getElementById("accountsDrawer");
+    const overlay = document.getElementById("drawerOverlay");
+    drawer?.classList.add("show");
+    drawer?.classList.add("open");
+    overlay?.classList.add("show");
+    // prevent background scroll on mobile
     document.body.style.overflow = "hidden";
-  }
+
+    // Ensure accounts UI is mounted + visible
+    try { mountAccountsIntoDrawer(); } catch(e) {}
+    try {
+      const pageAccounts = document.getElementById("pageAccounts");
+      if(pageAccounts){ pageAccounts.style.display = "block"; }
+    } catch(e){}
+}
   function closeDrawer(){
-    document.getElementById("accountsDrawer")?.classList.remove("show");
-    document.getElementById("drawerOverlay")?.classList.remove("show");
+    const drawer = document.getElementById("accountsDrawer");
+    const overlay = document.getElementById("drawerOverlay");
+    drawer?.classList.remove("show");
+    drawer?.classList.remove("open");
+    overlay?.classList.remove("show");
     document.body.style.overflow = "";
-  }
+}
   const gear = document.getElementById("topGearBtn");
   if(gear){
     gear.addEventListener("click", (e)=>{ e.preventDefault(); e.stopPropagation(); openDrawer(); }, {passive:false});
