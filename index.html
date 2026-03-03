@@ -926,6 +926,18 @@ body { min-height:100vh; }
 /* make drawer content scrollable and interactive */
 .drawer .drawerBody { overflow:auto; -webkit-overflow-scrolling: touch; pointer-events:auto; }
 
+
+/* Drawer tabs */
+.drawerTabs{display:flex;gap:10px;margin:6px 0 14px;padding:0 2px;}
+.drawerTab{flex:1;padding:10px 12px;border-radius:14px;border:1px solid rgba(255,255,255,.12);
+  background:rgba(255,255,255,.08);color:#eaf2ff;font-weight:800;letter-spacing:.06em}
+.drawerTab.active{background:linear-gradient(135deg, rgba(0,255,255,.18), rgba(170,120,255,.18));border-color:rgba(0,255,255,.25)}
+.drawerTabPanel{display:none}
+.drawerTabPanel.active{display:block}
+.panelCard{padding:14px;border-radius:18px;border:1px solid rgba(255,255,255,.12);background:rgba(10,14,24,.55);backdrop-filter:blur(10px)}
+.panelTitle{font-weight:900;font-size:16px;margin-bottom:6px}
+.panelDesc{opacity:.85;font-size:13px;line-height:1.5;margin-bottom:12px}
+.panelActions{display:flex;gap:10px;flex-wrap:wrap}
 </style>
 
 <script>
@@ -1111,70 +1123,7 @@ function removeUndefinedFields(obj){
 >
  <!-- /pageMain -->
 
-  <div class="page" id="pageAccounts">
-    <div class="card">
-      <h2 style="margin:0 0 8px; font-size:16px;">Xアカウント保存</h2>
-      <div class="muted">※あなたの希望通り「ID/パス/メアド/メアドパス」をこのHTML内（ブラウザの保存領域）に保存します。端末共有や盗難がある環境では注意。</div>
-
-      <div class="acct-grid" style="margin-top:10px;">
-        <div>
-          <label>ラベル（例：捨て垢A）</label>
-          <input id="accLabel" placeholder="任意" />
-
-          <label>X ID（@は任意）</label>
-          <input id="accXId" placeholder="example_id" />
-
-          <label>X パスワード</label>
-          <input id="accXPw" type="password" placeholder="password" />
-
-          <label>メールアドレス</label>
-          <input id="accMail" placeholder="example@mail.com" />
-
-          <label>メール パスワード</label>
-          <input id="accMailPw" type="password" placeholder="password" />
-
-          <label>メール パス（プロバイダ用の追加情報など）</label>
-          <input id="accMailPath" placeholder="例：imap.example.com / 復旧用メモ 等" />
-
-          <label>メモ</label>
-          <textarea id="accNote" placeholder="任意メモ"></textarea>
-
-          <div class="btns">
-            <button id="accSaveBtn" type="button">保存（追加/更新）</button>
-            <button class="secondary" id="accClearBtn" type="button">入力クリア</button>
-          </div>
-
-          <div class="muted" id="accEditHint"></div>
-        </div>
-
-        <div>
-          <div class="btns acct-top-actions">
-            <button class="secondary" id="accExportBtn" type="button">エクスポート（JSON）</button>
-            <button class="secondary" id="accImportBtn" type="button">インポート（JSON）</button>
-            <input id="accImportFile" type="file" accept="application/json" style="display:none;">
-            <button class="secondary" id="accCsvImportBtn" type="button">CSV取込（スプレッドシート）</button>
-            <input id="accCsvFile" type="file" accept=".csv,text/csv,.tsv,text/tab-separated-values,text/plain" style="display:none;">
-            <button class="secondary" id="accCsvExampleBtn" type="button">CSV例コピー</button>
-            <button class="danger" id="accDeleteAllBtn" type="button">全削除</button>
-          </div>
-
-          <div style="overflow:auto; border:1px solid #eee; border-radius:10px; margin-top:8px;">
-            <table class="acct-table">
-              <thead>
-                <tr>
-                  <th class="acct-col-label">ラベル / ID</th>
-                  <th>メアド</th>
-                  <th class="acct-col-actions">操作</th>
-                </tr>
-              </thead>
-              <tbody id="accTbody"></tbody>
-            </table>
-          </div>
-          <div class="muted" id="accCount"></div>
-        </div>
-      </div>
-    </div>
-  </div> <!-- /pageAccounts -->
+  <!-- pageAccounts moved into drawer -->
 
 
   <div class="page" id="pageTelegram">
@@ -2922,13 +2871,98 @@ function hcScrollToOutput(){
   
 
   <div id="drawerOverlay" aria-hidden="true"></div>
-  <aside id="accountsDrawer" aria-hidden="true">
-    <div class="drawerHead">
+  <aside id="accountsDrawer" class="drawer" aria-hidden="true">
+  <div id="drawerOverlay" class="drawerOverlay" tabindex="-1"></div>
+  <div class="drawerPanel" role="dialog" aria-modal="true" aria-label="設定 / アカウント">
+    <div class="drawerHeader">
       <div class="drawerTitle">設定 / アカウント</div>
-      <button id="drawerClose" type="button" class="iconBtn" aria-label="close">✕</button>
+      <button class="drawerClose" id="drawerCloseBtn" type="button" aria-label="閉じる">×</button>
     </div>
-    <div class="drawerBody" id="drawerBody"></div>
-  </aside>
+
+    <div class="drawerBody" id="drawerBody">
+      <div class="drawerTabs" role="tablist" aria-label="設定タブ">
+        <button class="drawerTab active" type="button" role="tab" aria-selected="true" data-tab="acc">Xアカウント</button>
+        <button class="drawerTab" type="button" role="tab" aria-selected="false" data-tab="lic">ライセンス</button>
+      </div>
+
+      <section class="drawerTabPanel active" id="drawerTab_acc" role="tabpanel">
+        <div class="card">
+      <h2 style="margin:0 0 8px; font-size:16px;">Xアカウント保存</h2>
+      <div class="muted">※あなたの希望通り「ID/パス/メアド/メアドパス」をこのHTML内（ブラウザの保存領域）に保存します。端末共有や盗難がある環境では注意。</div>
+
+      <div class="acct-grid" style="margin-top:10px;">
+        <div>
+          <label>ラベル（例：捨て垢A）</label>
+          <input id="accLabel" placeholder="任意" />
+
+          <label>X ID（@は任意）</label>
+          <input id="accXId" placeholder="example_id" />
+
+          <label>X パスワード</label>
+          <input id="accXPw" type="password" placeholder="password" />
+
+          <label>メールアドレス</label>
+          <input id="accMail" placeholder="example@mail.com" />
+
+          <label>メール パスワード</label>
+          <input id="accMailPw" type="password" placeholder="password" />
+
+          <label>メール パス（プロバイダ用の追加情報など）</label>
+          <input id="accMailPath" placeholder="例：imap.example.com / 復旧用メモ 等" />
+
+          <label>メモ</label>
+          <textarea id="accNote" placeholder="任意メモ"></textarea>
+
+          <div class="btns">
+            <button id="accSaveBtn" type="button">保存（追加/更新）</button>
+            <button class="secondary" id="accClearBtn" type="button">入力クリア</button>
+          </div>
+
+          <div class="muted" id="accEditHint"></div>
+        </div>
+
+        <div>
+          <div class="btns acct-top-actions">
+            <button class="secondary" id="accExportBtn" type="button">エクスポート（JSON）</button>
+            <button class="secondary" id="accImportBtn" type="button">インポート（JSON）</button>
+            <input id="accImportFile" type="file" accept="application/json" style="display:none;">
+            <button class="secondary" id="accCsvImportBtn" type="button">CSV取込（スプレッドシート）</button>
+            <input id="accCsvFile" type="file" accept=".csv,text/csv,.tsv,text/tab-separated-values,text/plain" style="display:none;">
+            <button class="secondary" id="accCsvExampleBtn" type="button">CSV例コピー</button>
+            <button class="danger" id="accDeleteAllBtn" type="button">全削除</button>
+          </div>
+
+          <div style="overflow:auto; border:1px solid #eee; border-radius:10px; margin-top:8px;">
+            <table class="acct-table">
+              <thead>
+                <tr>
+                  <th class="acct-col-label">ラベル / ID</th>
+                  <th>メアド</th>
+                  <th class="acct-col-actions">操作</th>
+                </tr>
+              </thead>
+              <tbody id="accTbody"></tbody>
+            </table>
+          </div>
+          <div class="muted" id="accCount"></div>
+        </div>
+      </div>
+    </div>
+      </section>
+
+      <section class="drawerTabPanel" id="drawerTab_lic" role="tabpanel">
+        <div class="panelCard">
+          <div class="panelTitle">ライセンス情報</div>
+          <div class="panelDesc">状態・期限の確認、再認証は「情報」からいつでもできます。</div>
+          <div class="panelActions">
+            <button type="button" class="btn primary" id="openInfoFromDrawer">情報を開く</button>
+            <button type="button" class="btn" id="reauthFromDrawer">ライセンス再認証</button>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+</aside>
 
 
 <script>
@@ -3057,6 +3091,49 @@ function hcScrollToOutput(){
 
   // escape to close (desktop)
   document.addEventListener("keydown", (e)=>{ if(e.key==="Escape") closeDrawer(); });
+})();
+</script>
+
+
+<script>
+(() => {
+  // Drawer tabs
+  const tabButtons = Array.from(document.querySelectorAll("#accountsDrawer .drawerTab"));
+  const panels = {
+    acc: document.getElementById("drawerTab_acc"),
+    lic: document.getElementById("drawerTab_lic"),
+  };
+  function setTab(name){
+    tabButtons.forEach(b=>{
+      const on = b.dataset.tab === name;
+      b.classList.toggle("active", on);
+      b.setAttribute("aria-selected", on ? "true" : "false");
+    });
+    Object.entries(panels).forEach(([k,el])=>{ if(el) el.classList.toggle("active", k===name); });
+  }
+  tabButtons.forEach(b=>b.addEventListener("click", ()=>setTab(b.dataset.tab)));
+
+  // Drawer -> Info modal bridge
+  const btnInfo = document.getElementById("openInfoFromDrawer");
+  if (btnInfo) btnInfo.addEventListener("click", () => {
+    try {
+      // close drawer then open info modal
+      if (typeof closeDrawer === "function") closeDrawer();
+      const infoBtn = document.getElementById("infoBtn");
+      if (infoBtn) infoBtn.click();
+      else if (typeof openInfoModal === "function") openInfoModal();
+    } catch(e){}
+  });
+
+  const btnReauth = document.getElementById("reauthFromDrawer");
+  if (btnReauth) btnReauth.addEventListener("click", async () => {
+    try {
+      if (typeof closeDrawer === "function") closeDrawer();
+      const reauthBtn = document.getElementById("btnReauth") || document.getElementById("reauthBtn");
+      if (reauthBtn) reauthBtn.click();
+      else if (typeof hcReauth === "function") hcReauth();
+    } catch(e){}
+  });
 })();
 </script>
 
