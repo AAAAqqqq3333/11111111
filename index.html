@@ -938,6 +938,87 @@ body { min-height:100vh; }
 .panelTitle{font-weight:900;font-size:16px;margin-bottom:6px}
 .panelDesc{opacity:.85;font-size:13px;line-height:1.5;margin-bottom:12px}
 .panelActions{display:flex;gap:10px;flex-wrap:wrap}
+
+/* === Accounts list cards (drawer) === */
+.acc-list{ display:flex; flex-direction:column; gap:10px; }
+.acc-item{
+  display:flex; align-items:center; justify-content:space-between;
+  gap:10px;
+  padding:12px 12px;
+  border:1px solid rgba(255,255,255,.12);
+  background: rgba(255,255,255,.06);
+  border-radius:14px;
+  cursor:pointer;
+}
+.acc-item:active{ transform: scale(.99); }
+.acc-item .acc-main{ min-width:0; }
+.acc-item .acc-name{
+  font-weight:800; font-size:14px;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+.acc-item .acc-sub{
+  font-size:12px; opacity:.75;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+.acc-item .acc-pill{
+  font-size:12px; padding:6px 10px;
+  border-radius:999px;
+  border:1px solid rgba(255,255,255,.14);
+  background: rgba(0,0,0,.18);
+  opacity:.9;
+}
+
+/* === Bottom sheet (account detail) === */
+.hc-sheet-overlay{
+  position:fixed; inset:0;
+  display:none;
+  align-items:flex-end;
+  justify-content:center;
+  background: rgba(0,0,0,.55);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  z-index: 10050;
+  padding: 12px;
+}
+.hc-sheet-overlay.show{ display:flex; }
+.hc-sheet{
+  width: min(96vw, 520px);
+  background: rgba(12,14,20,.96);
+  border:1px solid rgba(255,255,255,.12);
+  border-radius: 18px;
+  box-shadow: 0 20px 80px rgba(0,0,0,.65);
+  overflow:hidden;
+}
+.hc-sheet-head{
+  display:flex; align-items:center; justify-content:space-between;
+  padding: 12px 12px;
+  border-bottom:1px solid rgba(255,255,255,.10);
+}
+.hc-sheet-title{ font-weight:900; letter-spacing:.06em; }
+.hc-sheet-body{
+  padding: 12px 12px;
+  max-height: 52vh;
+  overflow:auto;
+}
+.hc-kv{
+  display:grid;
+  grid-template-columns: 120px 1fr;
+  gap:8px 10px;
+  padding:10px 10px;
+  border:1px solid rgba(255,255,255,.10);
+  background: rgba(255,255,255,.05);
+  border-radius: 14px;
+  font-size: 13px;
+}
+.hc-kv b{ opacity:.85; }
+.hc-kv span{ opacity:.9; word-break: break-word; }
+.hc-sheet-actions{
+  display:flex; gap:10px;
+  padding: 12px 12px;
+  border-top:1px solid rgba(255,255,255,.10);
+  flex-wrap:wrap;
+}
+
 </style>
 
 <script>
@@ -1894,6 +1975,8 @@ $("activateBtn").addEventListener("click", async () => {
     save: $("accSaveBtn"),
     clear: $("accClearBtn"),
     tbody: $("accTbody"),
+    list: $("accList"),
+    hint: $("accEditHint"),
     count: $("accCount"),
     hint: $("accEditHint"),
     exportBtn: $("accExportBtn"),
@@ -1941,6 +2024,7 @@ $("activateBtn").addEventListener("click", async () => {
 
   function accClearForm() {
     accEditingId = null;
+    if (accEls.hint) accEls.hint.style.display = "none";
     accEls.label.value = "";
     accEls.xid.value = "";
     accEls.xpw.value = "";
@@ -1953,85 +2037,168 @@ $("activateBtn").addEventListener("click", async () => {
 
   function renderAccounts() {
     const arr = loadAccounts();
+    // legacy table (if any)
     if (accEls.tbody) accEls.tbody.innerHTML = "";
+    if (accEls.list) accEls.list.innerHTML = "";
 
-    arr.forEach(a => {
-      const tr = document.createElement("tr");
+    const safe = (s)=> String(s ?? "");
+    const dispName = (a)=>{
+      const n = safe(a.label).trim() || safe(a.xid).trim() || "アカウント";
+      return n;
+    };
+    const dispId = (a)=>{
+      const raw = safe(a.xid).trim();
+      if (!raw) return "";
+      return raw.startsWith("@") ? raw : ("@" + raw);
+    };
 
-      const td1 = document.createElement("td");
-      td1.innerHTML = `<b>${(a.label||"").replaceAll("<","&lt;")}</b><br><small>${(a.xid||"")}</small>`;
-      const td2 = document.createElement("td");
-      td2.innerHTML = `<small>${(a.mail||"")}</small>`;
+    // build card list
+    arr.forEach(a=>{
+      const item = document.createElement("div");
+      item.className = "acc-item";
+      item.tabIndex = 0;
 
-      const td3 = document.createElement("td");
-      td3.className = "btns";
-      td3.style.justifyContent = "flex-start";
-      td3.style.flexWrap = "wrap";
+      const main = document.createElement("div");
+      main.className = "acc-main";
+      main.style.minWidth = "0";
 
-      const mkBtn = (txt, cls="secondary") => {
-        const b = document.createElement("button");
-        b.type = "button";
-        b.textContent = txt;
-        b.className = cls;
-        return b;
-      };
+      const name = document.createElement("div");
+      name.className = "acc-name";
+      name.textContent = dispName(a);
 
-      const bEdit = mkBtn("編集");
-      bEdit.addEventListener("click", () => {
-        accEditingId = a.id;
-        accEls.label.value = a.label || "";
-        accEls.xid.value = a.xid || "";
-        accEls.xpw.value = a.xpw || "";
-        accEls.mail.value = a.mail || "";
-        accEls.mailpw.value = a.mailpw || "";
-        accEls.mailpath.value = a.mailpath || "";
-        accEls.note.value = a.note || "";
-        if (accEls.hint) accEls.hint.textContent = "編集モード：保存で更新されます（ID: " + a.id + "）";
-      });
+      const sub = document.createElement("div");
+      sub.className = "acc-sub";
+      sub.textContent = dispId(a);
 
-      const bDel = mkBtn("削除", "danger");
-      bDel.addEventListener("click", () => {
-        if (!confirm("このアカウントを削除しますか？")) return;
-        const arr2 = loadAccounts().filter(x => x.id !== a.id);
-        saveAccounts(arr2);
-        if (accEditingId === a.id) accClearForm();
-        renderAccounts();
-      });
+      main.append(name, sub);
 
-      const bCopyId = mkBtn("IDコピー");
-      bCopyId.addEventListener("click", () => copyToClipboard(a.xid || ""));
+      const pill = document.createElement("div");
+      pill.className = "acc-pill";
+      pill.textContent = "詳細";
 
-      const bCopyPw = mkBtn("Xパスコピー");
-      bCopyPw.addEventListener("click", () => copyToClipboard(a.xpw || ""));
+      item.append(main, pill);
 
-      const bCopyMail = mkBtn("メアドコピー");
-      bCopyMail.addEventListener("click", () => copyToClipboard(a.mail || ""));
+      const open = ()=> openAccountDetail(a.id);
+      item.addEventListener("click", open);
+      item.addEventListener("keydown", (e)=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); open(); }});
 
-      const bCopyMailPw = mkBtn("メアドパスコピー");
-      bCopyMailPw.addEventListener("click", () => copyToClipboard(a.mailpw || ""));
+      if (accEls.list) accEls.list.appendChild(item);
 
-      const bCopyAll = mkBtn("全部コピー");
-      bCopyAll.addEventListener("click", () => {
-        const all = [
-          `label: ${a.label||""}`,
-          `xid: ${a.xid||""}`,
-          `xpw: ${a.xpw||""}`,
-          `mail: ${a.mail||""}`,
-          `mailpw: ${a.mailpw||""}`,
-          `mailpath: ${a.mailpath||""}`,
-          `note: ${a.note||""}`,
-        ].join("\n");
-        copyToClipboard(all);
-      });
-
-      td3.append(bEdit, bCopyId, bCopyPw, bCopyMail, bCopyMailPw, bCopyAll, bDel);
-
-      tr.append(td1, td2, td3);
-      accEls.tbody.appendChild(tr);
+      // keep legacy table rows if table exists (optional)
+      if (accEls.tbody) {
+        const tr = document.createElement("tr");
+        const td1 = document.createElement("td");
+        td1.innerHTML = `<b>${dispName(a).replaceAll("<","&lt;")}</b><br><small>${dispId(a)}</small>`;
+        const td2 = document.createElement("td");
+        td2.innerHTML = `<small>${safe(a.mail)}</small>`;
+        const td3 = document.createElement("td");
+        td3.textContent = "-";
+        tr.append(td1, td2, td3);
+        accEls.tbody.appendChild(tr);
+      }
     });
 
-    if (accEls.count) accEls.count.textContent = `保存数：${arr.length}`;
+    if (accEls.count) {
+      accEls.count.textContent = `保存数: ${arr.length}`;
+    }
   }
+
+  // --- Account detail sheet ---
+  const accDetail = {
+    overlay: $("accDetailOverlay"),
+    sheet: $("accDetailSheet"),
+    title: $("accDetailTitle"),
+    body: $("accDetailBody"),
+    close: $("accDetailClose"),
+    use: $("accUseBtn"),
+    edit: $("accEditBtn"),
+    del: $("accDeleteBtn"),
+  };
+  let accDetailId = null;
+
+  function openAccountDetail(id){
+    const a = loadAccounts().find(x=>x.id===id);
+    if(!a) return;
+    accDetailId = id;
+
+    const name = (String(a.label||"").trim() || String(a.xid||"").trim() || "アカウント");
+    const xid = String(a.xid||"").trim();
+    accDetail.title.textContent = name;
+
+    const kv = (k,v)=>`<b>${k}</b><span>${(v??"")?String(v):""}</span>`;
+    accDetail.body.innerHTML = `
+      <div class="hc-kv">
+        ${kv("X ID", xid ? (xid.startsWith("@")?xid:"@"+xid) : "")}
+        ${kv("X パス", a.xpw ? "••••••••" : "")}
+        ${kv("メール", a.mail||"")}
+        ${kv("メール パス", a.mailpw ? "••••••••" : "")}
+        ${kv("メールパス", a.mailpath||"")}
+        ${kv("メモ", a.note||"")}
+      </div>
+      <div class="muted" style="margin-top:10px; font-size:12px;">※パスワード類はマスク表示です（コピーは“編集”で確認してから）。</div>
+    `;
+
+    if(accDetail.overlay){
+      accDetail.overlay.classList.add("show");
+      accDetail.overlay.setAttribute("aria-hidden","false");
+    }
+  }
+  function closeAccountDetail(){
+    accDetailId = null;
+    if(accDetail.overlay){
+      accDetail.overlay.classList.remove("show");
+      accDetail.overlay.setAttribute("aria-hidden","true");
+    }
+  }
+
+  if (accDetail.close) accDetail.close.addEventListener("click", closeAccountDetail);
+  if (accDetail.overlay) accDetail.overlay.addEventListener("click", (e)=>{ if(e.target===accDetail.overlay) closeAccountDetail(); });
+
+  // Use: store as "active" for future features + toast
+  const ACC_ACTIVE_LS = "x_accounts_active_id";
+  if (accDetail.use) accDetail.use.addEventListener("click", ()=>{
+    if(!accDetailId) return;
+    localStorage.setItem(ACC_ACTIVE_LS, accDetailId);
+    toast("このアカウントを選択しました");
+    closeAccountDetail();
+  });
+
+  // Edit: fill form and open registration accordion
+  if (accDetail.edit) accDetail.edit.addEventListener("click", ()=>{
+    if(!accDetailId) return;
+    const a = loadAccounts().find(x=>x.id===accDetailId);
+    if(!a) return;
+
+    accEditingId = a.id;
+    accEls.label.value = a.label || "";
+    accEls.xid.value = a.xid || "";
+    accEls.xpw.value = a.xpw || "";
+    accEls.mail.value = a.mail || "";
+    accEls.mailpw.value = a.mailpw || "";
+    accEls.mailpath.value = a.mailpath || "";
+    accEls.note.value = a.note || "";
+    if (accEls.hint) accEls.hint.style.display = "block";
+
+    // open first details (registration)
+    const reg = document.querySelector('#drawerTab_acc details.hc-acc');
+    if(reg && reg.open===false) reg.open = true;
+
+    toast("編集フォームに読み込みました");
+    closeAccountDetail();
+  });
+
+  // Delete
+  if (accDetail.del) accDetail.del.addEventListener("click", ()=>{
+    if(!accDetailId) return;
+    if (!confirm("このアカウントを削除しますか？")) return;
+    const arr2 = loadAccounts().filter(x=>x.id!==accDetailId);
+    saveAccounts(arr2);
+    if (accEditingId === accDetailId) accClearForm();
+    renderAccounts();
+    toast("削除しました");
+    closeAccountDetail();
+  });
+
 
   if (accEls.save) accEls.save.addEventListener("click", () => {
     const label = accEls.label.value.trim();
@@ -2885,70 +3052,88 @@ function hcScrollToOutput(){
         <button class="drawerTab" type="button" role="tab" aria-selected="false" data-tab="lic">ライセンス</button>
       </div>
 
-      <section class="drawerTabPanel active" id="drawerTab_acc" role="tabpanel">
-        <div class="card">
-      <h2 style="margin:0 0 8px; font-size:16px;">Xアカウント保存</h2>
-      <div class="muted">※あなたの希望通り「ID/パス/メアド/メアドパス」をこのHTML内（ブラウザの保存領域）に保存します。端末共有や盗難がある環境では注意。</div>
+      <section class="drawerTabPanel active" id="drawerTab_acc" role="tabpanel">        <div class="card">
+          <h2 style="margin:0 0 8px; font-size:16px;">Xアカウント</h2>
+          <div class="muted">※入力内容はこの端末のブラウザ保存領域に保存されます（端末共有/紛失には注意）。</div>
 
-      <div class="acct-grid" style="margin-top:10px;">
-        <div>
-          <label>ラベル（例：捨て垢A）</label>
-          <input id="accLabel" placeholder="任意" />
+          <details class="hc-acc" open>
+            <summary>
+              <span>アカウント登録</span>
+              <span class="hc-acc-chevron"></span>
+            </summary>
 
-          <label>X ID（@は任意）</label>
-          <input id="accXId" placeholder="example_id" />
+            <div class="acct-grid" style="margin-top:12px;">
+              <div>
+                <label>ラベル（例：捨て垢A）</label>
+                <input id="accLabel" placeholder="任意" />
 
-          <label>X パスワード</label>
-          <input id="accXPw" type="password" placeholder="password" />
+                <label>X ID（@は任意）</label>
+                <input id="accXId" placeholder="example_id" />
 
-          <label>メールアドレス</label>
-          <input id="accMail" placeholder="example@mail.com" />
+                <label>X パスワード</label>
+                <input id="accXPw" type="password" placeholder="password" />
 
-          <label>メール パスワード</label>
-          <input id="accMailPw" type="password" placeholder="password" />
+                <label>メールアドレス</label>
+                <input id="accMail" placeholder="example@mail.com" />
 
-          <label>メール パス（プロバイダ用の追加情報など）</label>
-          <input id="accMailPath" placeholder="例：imap.example.com / 復旧用メモ 等" />
+                <label>メール パスワード</label>
+                <input id="accMailPw" type="password" placeholder="mail password" />
 
-          <label>メモ</label>
-          <textarea id="accNote" placeholder="任意メモ"></textarea>
+                <label>メールパス（任意）</label>
+                <input id="accMailPath" placeholder="例: https://mail.example.com/ など" />
 
-          <div class="btns">
-            <button id="accSaveBtn" type="button">保存（追加/更新）</button>
-            <button class="secondary" id="accClearBtn" type="button">入力クリア</button>
-          </div>
+                <label>メモ（任意）</label>
+                <input id="accNote" placeholder="任意" />
 
-          <div class="muted" id="accEditHint"></div>
+                <div class="btns" style="margin-top:10px;">
+                  <button class="primary" id="accSaveBtn" type="button">保存</button>
+                  <button class="secondary" id="accClearBtn" type="button">クリア</button>
+                </div>
+                <div class="muted" id="accEditHint" style="margin-top:8px; display:none;">編集モード：保存で上書きされます</div>
+              </div>
+
+              <div>
+                <div class="muted" style="margin-bottom:8px;">スプレッドシート（CSV/TSV/XLSX）一括取り込み</div>
+                <div class="btns" style="flex-wrap:wrap; gap:10px;">
+                  <button class="secondary" id="accImportBtn" type="button">ファイル選択</button>
+                  <input id="accImportFile" type="file" accept=".csv,.tsv,.xlsx" style="display:none;" />
+                  <button class="secondary" id="accExportBtn" type="button">エクスポート</button>
+                  <button class="danger" id="accDeleteAllBtn" type="button">全削除</button>
+                </div>
+                <div class="muted" style="margin-top:10px; font-size:12px;">
+                  取り込み列例：label, x_id, x_pass, mail, mail_pass（NODATAは未入力扱い）
+                </div>
+              </div>
+            </div>
+          </details>
+
+          <details class="hc-acc" open style="margin-top:12px;">
+            <summary>
+              <span>アカウント一覧</span>
+              <span class="hc-acc-chevron"></span>
+            </summary>
+
+            <div id="accList" class="acc-list" style="margin-top:12px;"></div>
+            <div class="muted" id="accCount" style="margin-top:8px;"></div>
+          </details>
         </div>
 
-        <div>
-          <div class="btns acct-top-actions">
-            <button class="secondary" id="accExportBtn" type="button">エクスポート（JSON）</button>
-            <button class="secondary" id="accImportBtn" type="button">インポート（JSON）</button>
-            <input id="accImportFile" type="file" accept="application/json" style="display:none;">
-            <button class="secondary" id="accCsvImportBtn" type="button">CSV取込（スプレッドシート）</button>
-            <input id="accCsvFile" type="file" accept=".csv,text/csv,.tsv,text/tab-separated-values,text/plain" style="display:none;">
-            <button class="secondary" id="accCsvExampleBtn" type="button">CSV例コピー</button>
-            <button class="danger" id="accDeleteAllBtn" type="button">全削除</button>
+        <!-- Account detail bottom sheet -->
+        <div id="accDetailOverlay" class="hc-sheet-overlay" aria-hidden="true">
+          <div id="accDetailSheet" class="hc-sheet" role="dialog" aria-modal="true" aria-label="アカウント詳細">
+            <div class="hc-sheet-head">
+              <div id="accDetailTitle" class="hc-sheet-title">アカウント</div>
+              <button id="accDetailClose" class="iconBtn" type="button" aria-label="閉じる">×</button>
+            </div>
+            <div class="hc-sheet-body" id="accDetailBody"></div>
+            <div class="hc-sheet-actions">
+              <button id="accUseBtn" class="primary" type="button">このアカウントを使用</button>
+              <button id="accEditBtn" class="secondary" type="button">編集</button>
+              <button id="accDeleteBtn" class="danger" type="button">削除</button>
+            </div>
           </div>
-
-          <div style="overflow:auto; border:1px solid #eee; border-radius:10px; margin-top:8px;">
-            <table class="acct-table">
-              <thead>
-                <tr>
-                  <th class="acct-col-label">ラベル / ID</th>
-                  <th>メアド</th>
-                  <th class="acct-col-actions">操作</th>
-                </tr>
-              </thead>
-              <tbody id="accTbody"></tbody>
-            </table>
-          </div>
-          <div class="muted" id="accCount"></div>
         </div>
-      </div>
-    </div>
-      </section>
+</section>
 
       <section class="drawerTabPanel" id="drawerTab_lic" role="tabpanel">
         <div class="panelCard">
