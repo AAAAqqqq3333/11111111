@@ -1150,6 +1150,8 @@ html.is-orion .hc-modal{
 html.is-orion table thead th{
   background: rgba(16,20,28,0.78) !important;
 }
+
+  body.hc-noscroll{overflow:hidden;touch-action:none;}
 </style>
 
 <script>
@@ -3476,6 +3478,47 @@ function hcScrollToOutput(){
     </div>
     <div class="muted" style="margin-top:8px; font-size:12px;"><span class="policyNote">※別タブで開きます</span></div>
   </div>
+
+
+<script>
+/* === HC Drawer hard-bind (fix for some browsers where earlier listeners don't fire) === */
+(function(){
+  const gear = document.getElementById('topGearBtn');
+  const drawer = document.getElementById('accountsDrawer');
+  const overlay = document.getElementById('drawerOverlay');
+  if(!gear || !drawer || !overlay) return;
+
+  function openDrawer(){
+    overlay.classList.add('show');
+    drawer.classList.add('show','open');
+    document.body.classList.add('hc-noscroll');
+  }
+  function closeDrawer(){
+    overlay.classList.remove('show');
+    drawer.classList.remove('show','open');
+    document.body.classList.remove('hc-noscroll');
+  }
+
+  // expose for other scripts
+  window.HC_openDrawer = openDrawer;
+  window.HC_closeDrawer = closeDrawer;
+
+  // capture + touch to avoid "click eaten" issues
+  const openHandler = (e)=>{ try{ e.preventDefault(); }catch(_){} try{ e.stopPropagation(); }catch(_){} openDrawer(); };
+  gear.addEventListener('click', openHandler, true);
+  gear.addEventListener('touchend', openHandler, {capture:true, passive:false});
+
+  overlay.addEventListener('click', closeDrawer, true);
+  document.addEventListener('keydown', (e)=>{ if(e.key === 'Escape') closeDrawer(); });
+
+  const closeBtn =
+    drawer.querySelector('#drawerCloseBtn') ||
+    drawer.querySelector('.drawerCloseBtn') ||
+    drawer.querySelector('.drawerHeader .closeBtn') ||
+    drawer.querySelector('.drawerHeader button');
+  if(closeBtn) closeBtn.addEventListener('click', closeDrawer, true);
+})();
+</script>
 
 </body>
 </html>
