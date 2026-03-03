@@ -829,7 +829,7 @@ details.hc-acc[open] .hc-acc-chevron{ transform: rotate(-135deg); }
   display: none;
   z-index: 9997;
 }
-#drawerOverlay.show{ display:block; }
+#drawerOverlay.show{ display:block; pointer-events:auto; }
 
 #accountsDrawer{
   position: fixed;
@@ -1081,6 +1081,18 @@ body { min-height:100vh; }
   margin-top: 10px;
 }
 
+
+  /* Drawer text safety */
+  #accountsDrawer .drawerHeaderTitle,
+  #accountsDrawer h2,#accountsDrawer h3,#accountsDrawer h4,
+  #accountsDrawer label,
+  #accountsDrawer .muted,
+  #accountsDrawer .tabBtn,
+  #accountsDrawer .accTitle,
+  #accountsDrawer .accSub{
+    color: rgba(240,248,255,0.96);
+  }
+  #accountsDrawer .muted{ color: rgba(240,248,255,0.72); }
 </style>
 
 <script>
@@ -2946,6 +2958,20 @@ function openModal(){
 
     const btn = findTopButton();
     if(btn) ensureLabel(btn);
+
+    // Drawer bindings (gear -> open, overlay/X -> close)
+    const gear = document.getElementById('topGearBtn');
+    const drawer = document.getElementById('accountsDrawer');
+    const overlay = document.getElementById('drawerOverlay');
+    const closeBtn = document.getElementById('drawerCloseBtn');
+
+    if(gear && drawer && overlay){
+      gear.addEventListener('click', (e)=>{ e.preventDefault(); openDrawer(); });
+      overlay.addEventListener('click', closeDrawer);
+      if(closeBtn) closeBtn.addEventListener('click', closeDrawer);
+      // ESC close (desktop)
+      document.addEventListener('keydown', (ev)=>{ if(ev.key==='Escape') closeDrawer(); });
+    }
   }
   if(document.readyState === 'loading'){
     document.addEventListener('DOMContentLoaded', init);
