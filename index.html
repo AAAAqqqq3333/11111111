@@ -2164,17 +2164,18 @@ $("activateBtn").addEventListener("click", async () => {
     const xid = String(a.xid||"").trim();
     accDetail.title.textContent = name;
 
-    const kv = (k,v)=>`<b>${k}</b><span>${(v??"")?String(v):""}</span>`;
+    const esc = (s)=>String(s??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;");
+    const kv = (k,v)=>`<b>${esc(k)}</b><span class="copyVal" data-copy="${esc(v)}">${esc(v)}</span>`;
     accDetail.body.innerHTML = `
       <div class="hc-kv">
         ${kv("X ID", xid ? (xid.startsWith("@")?xid:"@"+xid) : "")}
-        ${kv("X パス", a.xpw ? "••••••••" : "")}
+        ${kv("X パスワード", a.xpw||"")}
         ${kv("メール", a.mail||"")}
-        ${kv("メール パス", a.mailpw ? "••••••••" : "")}
+        ${kv("メール パスワード", a.mailpw||"")}
         ${kv("メールパス", a.mailpath||"")}
         ${kv("メモ", a.note||"")}
       </div>
-      <div class="muted" style="margin-top:10px; font-size:12px;">※パスワード類はマスク表示です（コピーは“編集”で確認してから）。</div>
+      <div class="muted" style="margin-top:10px; font-size:12px;">※各項目をタップでコピーできます。</div>
     `;
 
     if(accDetail.overlay){
@@ -2192,6 +2193,57 @@ $("activateBtn").addEventListener("click", async () => {
 
   if (accDetail.close) accDetail.close.addEventListener("click", closeAccountDetail);
   if (accDetail.overlay) accDetail.overlay.addEventListener("click", (e)=>{ if(e.target===accDetail.overlay) closeAccountDetail(); });
+
+  // --- Tap-to-copy in account detail sheet ---
+  function hcShowToast(msg){
+    let t = document.getElementById("hcCopyToast");
+    if(!t){
+      t = document.createElement("div");
+      t.id = "hcCopyToast";
+      t.style.cssText = "position:fixed;left:50%;bottom:22px;transform:translateX(-50%);padding:10px 14px;border-radius:999px;border:1px solid rgba(255,255,255,.18);background:rgba(12,14,20,.92);color:#fff;font-weight:900;font-size:13px;letter-spacing:.02em;z-index:30000;opacity:0;pointer-events:none;transition:opacity .15s ease, transform .15s ease;backdrop-filter: blur(10px);-webkit-backdrop-filter: blur(10px);";
+      document.body.appendChild(t);
+    }
+    t.textContent = msg;
+    t.style.opacity = "1";
+    t.style.transform = "translateX(-50%) translateY(0)";
+    clearTimeout(t._tm);
+    t._tm = setTimeout(()=>{ t.style.opacity="0"; t.style.transform="translateX(-50%) translateY(6px)"; }, 900);
+  }
+
+  async function hcCopyText(text){
+    const s = String(text ?? "");
+    try{
+      if(navigator.clipboard && navigator.clipboard.writeText){
+        await navigator.clipboard.writeText(s);
+        return true;
+      }
+    }catch(e){}
+    try{
+      const ta = document.createElement("textarea");
+      ta.value = s;
+      ta.setAttribute("readonly","");
+      ta.style.position = "fixed";
+      ta.style.left = "-9999px";
+      document.body.appendChild(ta);
+      ta.select();
+      const ok = document.execCommand("copy");
+      document.body.removeChild(ta);
+      return !!ok;
+    }catch(e){}
+    return false;
+  }
+
+  if (accDetail.body) {
+    accDetail.body.addEventListener("click", async (e)=>{
+      const el = e.target && e.target.closest ? e.target.closest(".copyVal") : null;
+      if(!el) return;
+      const v = el.getAttribute("data-copy") || el.textContent || "";
+      const ok = await hcCopyText(v);
+      hcShowToast(ok ? "コピーしました" : "コピー失敗");
+      try{ el.animate([{transform:"scale(1)"},{transform:"scale(.98)"},{transform:"scale(1)"}], {duration:140}); }catch(_){}
+    });
+  }
+
 
   // Use: store as "active" for future features + toast
   const ACC_ACTIVE_LS = "x_accounts_active_id";
