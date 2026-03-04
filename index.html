@@ -1,11 +1,15 @@
 <!doctype html>
 <html lang="ja">
 <head>
-  <script>
+  
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
+<script>
 (function(){
   try{
     var ua = navigator.userAgent || "";
-    if (/Orion/i.test(ua)) document.documentElement.classList.add('is-orion');
+    if (ua.includes('Orion')) document.documentElement.classList.add('is-orion');
   }catch(e){}
 })();
 </script>
@@ -1152,6 +1156,48 @@ html.is-orion table thead th{
 }
 
   body.hc-noscroll{overflow:hidden;touch-action:none;}
+
+/* --- Drawer robust styles (fix invisible panel / pointer events) --- */
+#accountsDrawer { position: fixed; inset: 0; z-index: 9999; pointer-events: none; }
+#accountsDrawer[aria-hidden="true"] { display:none; }
+#accountsDrawer .drawerOverlay { position:absolute; inset:0; background: rgba(0,0,0,.55); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
+#accountsDrawer .drawerPanel {
+  position:absolute; top: max(env(safe-area-inset-top), 10px); right: 10px; left: 10px;
+  bottom: max(env(safe-area-inset-bottom), 10px);
+  border-radius: 18px;
+  background: rgba(18,22,32,.88);
+  border: 1px solid rgba(255,255,255,.14);
+  box-shadow: 0 12px 40px rgba(0,0,0,.55);
+  color: #e9eefc;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+}
+#accountsDrawer.open { display:block; pointer-events: auto; }
+#accountsDrawer.open .drawerPanel { animation: hcDrawerIn .16s ease-out both; }
+@keyframes hcDrawerIn { from { transform: translateY(8px); opacity: .0; } to { transform: translateY(0); opacity: 1; } }
+
+/* Fallback when blur is unsupported */
+@supports not ((backdrop-filter: blur(2px)) or (-webkit-backdrop-filter: blur(2px))) {
+  #accountsDrawer .drawerOverlay { background: rgba(0,0,0,.65); }
+  #accountsDrawer .drawerPanel { background: rgba(18,22,32,.95); }
+}
+
+
+/* --- Drawer visibility hardening (Safari/Orion) --- */
+#drawerOverlay.show{ display:block !important; opacity:1 !important; }
+#accountsDrawer{ z-index:2147483647; will-change:transform; backface-visibility:hidden; -webkit-backface-visibility:hidden; }
+#accountsDrawer.show{ transform:translateX(0) !important; right:0 !important; visibility:visible !important; opacity:1 !important; }
+html.is-orion #accountsDrawer,
+html.is-orion .hc-card,
+html.is-orion .hc-pill,
+html.is-orion .hc-input,
+html.is-orion .hc-textarea{
+  /* Orionでbackdrop-filterが崩れる時の保険 */
+  backdrop-filter:none !important;
+  -webkit-backdrop-filter:none !important;
+}
+html.is-orion #accountsDrawer{ background:rgba(12,16,22,0.96) !important; }
+
 </style>
 
 <script>
@@ -2693,354 +2739,7 @@ if (accEls.exportBtn) accEls.exportBtn.addEventListener("click", () => {
 
 
 
-<script>
-// ===== License Button -> Info Modal (Stable v2) =====
-(function(){
-  const modal = document.getElementById('infoModal');
-  if(!modal) return;
 
-  function getStoredJSON(key){
-    try{
-      const v = localStorage.getItem(key);
-      if(!v) return null;
-      return JSON.parse(v);
-    }catch(e){ return null; }
-  }
-
-  // Try multiple keys (old/new builds)
-  function getLicense(){
-    return (
-      getStoredJSON('licenseData') ||
-      getStoredJSON('hc_licenseData') ||
-      getStoredJSON('hypercore_licenseData') ||
-      getStoredJSON('license_info') ||
-      null
-    );
-  }
-
-  function getDeviceId(){
-    return (
-      localStorage.getItem('deviceId') ||
-      localStorage.getItem('licenseDeviceId') ||
-      localStorage.getItem('hc_deviceId') ||
-      '-'
-    );
-  }
-
-  function maskKey(k){
-    if(!k) return '-';
-    k = String(k).trim();
-    if(k.length >= 19) return k.slice(0,4) + "-****-****-" + k.slice(-4);
-    if(k.length >= 8) return k.slice(0,4) + "****" + k.slice(-2);
-    return k;
-  }
-
-  function calcRemainDays(expRaw){
-    const exp = new Date(expRaw);
-    if(isNaN(exp.getTime())) return null;
-    const now = new Date();
-    const ms = exp.getTime() - now.getTime();
-    return { exp, ms, days: Math.max(0, Math.ceil(ms / 86400000)) };
-  }
-
-  
-
-function openModal(){
-    // Populate license info (robust scan + header parse)
-    const statusEl = document.getElementById('hcLicStatus');
-    const expEl = document.getElementById('hcLicExpiry');
-    const remEl = document.getElementById('hcLicRemain');
-    const keyEl = document.getElementById('hcLicKey');
-    const devEl = document.getElementById('hcDeviceId');
-
-    if(devEl) devEl.textContent = getDeviceId();
-
-    // Helper: parse info from visible header/badge text like:
-    // "認証済み（期限: 2026-03-30）（残り30日）"
-    function parseFromPageText(){
-      const txt = (document.body && document.body.innerText) ? document.body.innerText : "";
-      const ok = txt.includes("認証済み");
-      const mExp = txt.match(/期限[:：]\s*([0-9]{4}[-\/][0-9]{2}[-\/][0-9]{2})/);
-      const mRem = txt.match(/残り\s*([0-9]+)\s*日/);
-      return {
-        ok,
-        exp: mExp ? mExp[1] : null,
-        rem: mRem ? mRem[1] : null
-      };
-    }
-
-    function scanLocalStorageForLicense(){
-      // Look for any JSON object containing expires fields / key
-      for(let i=0;i<localStorage.length;i++){
-        const k = localStorage.key(i);
-        if(!k) continue;
-        const v = localStorage.getItem(k);
-        if(!v || v.length < 2) continue;
-        const first = v[0];
-        if(first !== '{' && first !== '[') continue;
-        try{
-          const obj = JSON.parse(v);
-          if(obj && typeof obj === 'object'){
-            const expRaw = obj.expires_at || obj.expiresAt || obj.expires || obj.exp || obj.expiry;
-            const key = obj.key || obj.licenseKey;
-            if(expRaw || key){
-              return { obj, expRaw, key, storageKey: k };
-            }
-          }
-        }catch(e){}
-      }
-      return null;
-    }
-
-    // Primary: known keys
-    let lic = getLicense();
-    let expRaw = lic ? (lic.expires_at || lic.expiresAt || lic.expires || lic.exp || lic.expiry) : null;
-    let k = lic ? (lic.key || lic.licenseKey) : null;
-
-    // Secondary: scan storage
-    if(!lic || (!expRaw && !k)){
-      const found = scanLocalStorageForLicense();
-      if(found){
-        lic = found.obj;
-        expRaw = found.expRaw || expRaw;
-        k = found.key || k;
-      }
-    }
-
-    // Also allow separate stored fields
-    if(!expRaw){
-      expRaw = localStorage.getItem('expires_at') || localStorage.getItem('expiresAt') || localStorage.getItem('licenseExpiresAt') || localStorage.getItem('hc_expiresAt') || null;
-    }
-    if(!k){
-      k = localStorage.getItem('licenseKey') || localStorage.getItem('key') || localStorage.getItem('hc_licenseKey') || null;
-    }
-
-    // Default render
-    if(statusEl) statusEl.textContent = "未認証";
-    if(expEl) expEl.textContent = "-";
-    if(remEl) remEl.textContent = "-";
-    if(keyEl) keyEl.textContent = k ? maskKey(k) : "（保存なし）";
-
-    // Determine status by expiry if available, else by presence of key/flag/header
-    let decided = false;
-
-    if(expRaw){
-      const r = calcRemainDays(expRaw);
-      if(r){
-        const ok = r.ms > 0 && !(lic && (lic.revoked || lic.is_revoked));
-        if(statusEl) statusEl.textContent = ok ? "認証済み" : "期限切れ";
-        if(expEl) expEl.textContent = r.exp.toLocaleDateString('ja-JP');
-        if(remEl) remEl.textContent = r.days + "日";
-        decided = true;
-      } else {
-        // Can't parse date but we have something => treat as authenticated
-        if(statusEl) statusEl.textContent = "認証済み";
-        if(expEl) expEl.textContent = String(expRaw);
-        decided = true;
-      }
-    }
-
-    if(!decided){
-      const flag = localStorage.getItem('hcLicensed') || localStorage.getItem('licensed') || '';
-      if((k && k.length >= 8) || flag === 'true'){
-        if(statusEl) statusEl.textContent = "認証済み";
-        decided = true;
-      }
-    }
-
-    // Final fallback: parse from what user actually sees on the page
-    if(!decided){
-      const p = parseFromPageText();
-      if(p.ok){
-        if(statusEl) statusEl.textContent = "認証済み";
-        if(p.exp && expEl) expEl.textContent = p.exp.replace(/\//g,'-');
-        if(p.rem && remEl) remEl.textContent = p.rem + "日";
-      }
-    }
-
-    modal.classList.add('show');
-
-
-    
-    modal.setAttribute('aria-hidden','false');
-    document.body.style.overflow = 'hidden';
-  }
-
-  function closeModal(){
-    modal.classList.remove('show');
-    modal.setAttribute('aria-hidden','true');
-    document.body.style.overflow = '';
-  }
-
-  // Close handlers
-  modal.addEventListener('click', (e)=>{
-    const t = e.target;
-    if(t && t.dataset && t.dataset.close){ closeModal(); }
-  });
-  document.addEventListener('keydown', (e)=>{
-    if(e.key === 'Escape' && modal.classList.contains('show')) closeModal();
-  });
-
-  // Reauth button: open license panel (if exists)
-  const reauth = document.getElementById('hcReauthBtn');
-  function hcToast(msg, ok){
-    try{
-      let t = document.getElementById('hcToast');
-      if(!t){
-        t = document.createElement('div');
-        t.id = 'hcToast';
-        t.style.position='fixed';
-        t.style.left='50%';
-        t.style.bottom='24px';
-        t.style.transform='translateX(-50%)';
-        t.style.zIndex='99999';
-        t.style.padding='10px 14px';
-        t.style.borderRadius='14px';
-        t.style.fontSize='14px';
-        t.style.backdropFilter='blur(10px)';
-        t.style.webkitBackdropFilter='blur(10px)';
-        t.style.boxShadow='0 10px 30px rgba(0,0,0,.35)';
-        t.style.border='1px solid rgba(255,255,255,.18)';
-        t.style.background= ok ? 'rgba(32, 180, 120, .22)' : 'rgba(220, 80, 80, .22)';
-        t.style.color='rgba(255,255,255,.92)';
-        document.body.appendChild(t);
-      }
-      t.textContent = msg;
-      t.style.opacity='0';
-      t.style.transition='opacity .18s ease';
-      requestAnimationFrame(()=>{ t.style.opacity='1'; });
-      clearTimeout(t._tm);
-      t._tm = setTimeout(()=>{ t.style.opacity='0'; }, 1800);
-    }catch(e){}
-  }
-
-  async function hcRevalidate(){
-    const key = (localStorage.getItem('licenseKey')||'').trim().toUpperCase();
-    const deviceId = localStorage.getItem('hc_deviceId') || localStorage.getItem('deviceId') || '';
-    if(!key){
-      hcToast('ライセンスキーが保存されてません。ライセンス画面で入力してね。', false);
-      return { ok:false, message:'no_key' };
-    }
-    try{
-      const res = await fetch(`${LICENSE_API_BASE}/validate`, {
-        method:'POST',
-        headers:{ 'Content-Type':'application/json' },
-        body: JSON.stringify({ key, deviceId })
-      });
-      const data = await res.json().catch(()=>null);
-      if(data && data.ok){
-        const exp = data.expires_at || data.expiresAt || data.expires || null;
-        if(exp){
-          localStorage.setItem('hc_expiresAt', exp);
-          localStorage.setItem('hcLicensed','true');
-        }
-        // keep a copy for future
-        localStorage.setItem('hc_lastLicenseResp', JSON.stringify(data));
-        // also mirror to common key names some builds use
-        try{ localStorage.setItem('licenseData', JSON.stringify({ ...data, key })); }catch(e){}
-        return { ok:true, data };
-      }
-      return { ok:false, message: (data && (data.message||data.error)) || ('status_'+res.status) };
-    }catch(e){
-      return { ok:false, message:'fetch_failed' };
-    }
-  }
-
-  if(reauth){
-    reauth.addEventListener('click', async ()=>{
-      reauth.disabled = true;
-      const prev = reauth.textContent;
-      reauth.textContent = '再認証中…';
-      const r = await hcRevalidate();
-      if(r.ok){
-        hcToast('再認証OK', true);
-        closeModal();
-        setTimeout(()=>{ location.reload(); }, 350);
-      }else{
-        hcToast('再認証失敗: ' + r.message, false);
-      }
-      reauth.textContent = prev || 'ライセンス再認証';
-      reauth.disabled = false;
-    });
-  }
-
-  // Find the top-right button reliably
-  function findTopButton(){
-    let btn =
-      document.getElementById('licenseBtn') ||
-      document.getElementById('btnLicense') ||
-      document.querySelector('button[data-action="license"]') ||
-      null;
-
-    if(!btn){
-      btn = Array.from(document.querySelectorAll('button, a')).find(el => {
-        const t = (el.textContent||'').trim();
-        return t === 'ライセンス認証' || t === '情報';
-      }) || null;
-    }
-    return btn;
-  }
-
-  function ensureLabel(btn){
-    if(!btn) return;
-    try{ btn.textContent = '情報'; }catch(e){}
-    btn.setAttribute('data-hc-info', '1');
-    btn.style.pointerEvents = 'auto';
-  }
-
-  // Capture-click interceptor (prevents old handlers from firing on reload)
-  document.addEventListener('click', (e)=>{
-    const btn = findTopButton();
-    if(btn) ensureLabel(btn);
-
-    const target = e.target;
-    if(!target) return;
-
-    // If clicking the info button (or inside it)
-    if(btn && (target === btn || (btn.contains && btn.contains(target)))){
-      e.preventDefault();
-      e.stopPropagation();
-      // stopImmediatePropagation might fail in some browsers; guard
-      try{ e.stopImmediatePropagation(); }catch(err){}
-      openModal();
-      return;
-    }
-  }, true); // capture phase
-
-  // Try initial label update (in case no click yet)
-  function init(){
-    // Prevent Safari from restoring a weird scroll position on reload/back-forward
-    try{ if('scrollRestoration' in history) history.scrollRestoration = 'manual'; }catch(e){}
-    // Always start at top on open (especially on iOS Safari)
-    requestAnimationFrame(()=>window.scrollTo(0,0));
-    setTimeout(()=>window.scrollTo(0,0), 80);
-
-    const btn = findTopButton();
-    if(btn) ensureLabel(btn);
-
-    // Drawer bindings (gear -> open, overlay/X -> close)
-    const gear = document.getElementById('topGearBtn');
-    const drawer = document.getElementById('accountsDrawer');
-    const overlay = document.getElementById('drawerOverlay');
-    const closeBtn = document.getElementById('drawerCloseBtn');
-
-    if(gear && drawer && overlay){
-      gear.addEventListener('click', (e)=>{ e.preventDefault(); openDrawer(); });
-      overlay.addEventListener('click', closeDrawer);
-      if(closeBtn) closeBtn.addEventListener('click', closeDrawer);
-      // ESC close (desktop)
-      document.addEventListener('keydown', (ev)=>{ if(ev.key==='Escape') closeDrawer(); });
-    }
-  }
-  if(document.readyState === 'loading'){
-    document.addEventListener('DOMContentLoaded', init);
-  }else{
-    init();
-  }
-  setTimeout(init, 600);
-
-})();
-</script>
 
 
 
@@ -3296,177 +2995,13 @@ function hcScrollToOutput(){
 </aside>
 
 
-<script>
-// === Accounts Drawer Wiring + Selected Account ===
-(function(){
-  const SEL_LS = "x_accounts_selected_v1";
-
-  function getSelectedId(){ try{ return localStorage.getItem(SEL_LS)||""; }catch(e){ return ""; } }
-  function setSelectedId(id){ try{ localStorage.setItem(SEL_LS, id||""); }catch(e){} }
-
-  function loadAccountsSafe(){
-    try{
-      const raw = localStorage.getItem("x_accounts_plain_v1");
-      if(!raw) return [];
-      const arr = JSON.parse(raw);
-      return Array.isArray(arr) ? arr : [];
-    }catch(e){ return []; }
-  }
-
-  function updateCurrentAccountUI(){
-    const el = document.getElementById("currentAccText");
-    if(!el) return;
-    const id = getSelectedId();
-    const arr = loadAccountsSafe();
-    const a = arr.find(x=>x.id===id);
-    if(a){
-      const xid = (a.xid||"").trim();
-      el.textContent = (a.label ? a.label + " / " : "") + (xid ? ("@" + xid.replace(/^@/,"")) : "IDなし");
-    } else {
-      el.textContent = "未選択";
-    }
-  }
-
-  // Move accounts card from pageAccounts into drawer
-  function mountAccountsIntoDrawer(){
-    const drawerBody = document.getElementById("drawerContent");
-    const pageAccounts = document.getElementById("pageAccounts");
-    if(!drawerBody || !pageAccounts) return;
-    // move once
-    if(pageAccounts.dataset.mounted === "1") return;
-    pageAccounts.dataset.mounted = "1";
-    // show inside drawer
-    pageAccounts.style.display = "block";
-    pageAccounts.style.maxHeight = "none";
-    pageAccounts.style.overflow = "visible";
-    pageAccounts.classList.add("in-drawer");
-    drawerBody.innerHTML = "";
-    drawerBody.appendChild(pageAccounts);
-    // hide original tab button if exists (accounts tab may remain elsewhere)
-    try{
-      const tab = document.getElementById("tabAccounts");
-      if(tab) tab.style.display = "none";
-    }catch(e){}
-  }
-
-  function openDrawer(){
-    document.getElementById("accountsDrawer")?.classList.add("show");
-    document.getElementById("drawerOverlay")?.classList.add("show");
-    document.body.style.overflow = "hidden";
-  }
-  function closeDrawer(){
-    document.getElementById("accountsDrawer")?.classList.remove("show");
-    document.getElementById("drawerOverlay")?.classList.remove("show");
-    document.body.style.overflow = "";
-  }
-
-  // keep drawer content interactive on iOS: prevent overlay from stealing taps
-  const gear = document.getElementById("topGearBtn");
-  gear?.addEventListener("click", (e)=>{ e.preventDefault(); e.stopPropagation(); openDrawer(); });
-  gear?.addEventListener("touchend", (e)=>{ e.preventDefault(); e.stopPropagation(); openDrawer(); }, {passive:false});
-
-  document.getElementById("drawerClose")?.addEventListener("click", (e)=>{ e.preventDefault(); e.stopPropagation(); closeDrawer(); });
-  document.getElementById("drawerOverlay")?.addEventListener("click", (e)=>{ closeDrawer(); });
-
-  // mount + refresh when ready
-  const boot = ()=>{
-    mountAccountsIntoDrawer();
-    try{ if(typeof window.updateCurrentAccountUI==="function") window.updateCurrentAccountUI(); }catch(e){}
-    try{ if(typeof window.renderAccounts==="function") window.renderAccounts(); }catch(e){}
-  };
-
-  if(document.readyState === "loading"){
-    document.addEventListener("DOMContentLoaded", boot);
-  } else {
-    boot();
-  }
-</script>
 
 
-<script>
-/* === v19: make top gear always work === */
-(function(){
-  function openDrawer(){
-    const drawer = document.getElementById("accountsDrawer");
-    const overlay = document.getElementById("drawerOverlay");
-    drawer?.classList.add("show");
-    drawer?.classList.add("open");
-    overlay?.classList.add("show");
-    // prevent background scroll on mobile
-    document.body.style.overflow = "hidden";
-
-    // Ensure accounts UI is mounted + visible
-    try { mountAccountsIntoDrawer(); } catch(e) {}
-    try {
-      const pageAccounts = document.getElementById("pageAccounts");
-      if(pageAccounts){ pageAccounts.style.display = "block"; }
-    } catch(e){}
-}
-  function closeDrawer(){
-    const drawer = document.getElementById("accountsDrawer");
-    const overlay = document.getElementById("drawerOverlay");
-    drawer?.classList.remove("show");
-    drawer?.classList.remove("open");
-    overlay?.classList.remove("show");
-    document.body.style.overflow = "";
-}
-  const gear = document.getElementById("topGearBtn");
-  if(gear){
-    gear.addEventListener("click", (e)=>{ e.preventDefault(); e.stopPropagation(); openDrawer(); }, {passive:false});
-    // touch fallback
-    gear.addEventListener("touchend", (e)=>{ e.preventDefault(); e.stopPropagation(); openDrawer(); }, {passive:false});
-  }
-  const overlay = document.getElementById("drawerOverlay");
-  overlay?.addEventListener("click", ()=>closeDrawer());
-  document.getElementById("drawerClose")?.addEventListener("click", ()=>closeDrawer());
-
-  // escape to close (desktop)
-  document.addEventListener("keydown", (e)=>{ if(e.key==="Escape") closeDrawer(); });
-})();
-</script>
 
 
-<script>
-(() => {
-  // Drawer tabs
-  const tabButtons = Array.from(document.querySelectorAll("#accountsDrawer .drawerTab"));
-  const panels = {
-    acc: document.getElementById("drawerTab_acc"),
-    lic: document.getElementById("drawerTab_lic"),
-  };
-  function setTab(name){
-    tabButtons.forEach(b=>{
-      const on = b.dataset.tab === name;
-      b.classList.toggle("active", on);
-      b.setAttribute("aria-selected", on ? "true" : "false");
-    });
-    Object.entries(panels).forEach(([k,el])=>{ if(el) el.classList.toggle("active", k===name); });
-  }
-  tabButtons.forEach(b=>b.addEventListener("click", ()=>setTab(b.dataset.tab)));
 
-  // Drawer -> Info modal bridge
-  const btnInfo = document.getElementById("openInfoFromDrawer");
-  if (btnInfo) btnInfo.addEventListener("click", () => {
-    try {
-      // close drawer then open info modal
-      if (typeof closeDrawer === "function") closeDrawer();
-      const infoBtn = document.getElementById("infoBtn");
-      if (infoBtn) infoBtn.click();
-      else if (typeof openInfoModal === "function") openInfoModal();
-    } catch(e){}
-  });
 
-  const btnReauth = document.getElementById("reauthFromDrawer");
-  if (btnReauth) btnReauth.addEventListener("click", async () => {
-    try {
-      if (typeof closeDrawer === "function") closeDrawer();
-      const reauthBtn = document.getElementById("btnReauth") || document.getElementById("reauthBtn");
-      if (reauthBtn) reauthBtn.click();
-      else if (typeof hcReauth === "function") hcReauth();
-    } catch(e){}
-  });
-})();
-</script>
+
 
 
   <div class="card" style="margin-top:12px;">
@@ -3480,43 +3015,91 @@ function hcScrollToOutput(){
   </div>
 
 
+
+
+
 <script>
-/* === HC Drawer hard-bind (fix for some browsers where earlier listeners don't fire) === */
-(function(){
-  const gear = document.getElementById('topGearBtn');
+/* HC_DRAWER_MAIN v1 - single source of truth */
+(() => {
   const drawer = document.getElementById('accountsDrawer');
   const overlay = document.getElementById('drawerOverlay');
-  if(!gear || !drawer || !overlay) return;
+  const openBtn = document.getElementById('topGearBtn');
+  const closeBtn = document.getElementById('drawerCloseBtn') || document.getElementById('drawerClose');
 
-  function openDrawer(){
+  if (!drawer || !overlay || !openBtn) {
+    console.warn('[HC] drawer elements missing', {drawer: !!drawer, overlay: !!overlay, openBtn: !!openBtn});
+    return;
+  }
+
+  // Fix: overlay must never sit inside drawer and must be clickable
+  overlay.classList.add('drawerOverlay');
+  overlay.setAttribute('aria-hidden', 'true');
+
+  const openDrawer = () => {
+    // harden (some browsers ignore transform/class timing)
+    try{
+      const d=document.getElementById('accountsDrawer');
+      const o=document.getElementById('drawerOverlay');
+      if(d){ d.style.display='block'; d.style.visibility='visible'; d.style.opacity='1'; d.style.right='0'; requestAnimationFrame(()=>{ d.style.transform='translateX(0)'; }); }
+      if(o){ o.style.display='block'; o.style.opacity='1'; }
+    }catch(e){}
+
     overlay.classList.add('show');
-    drawer.classList.add('show','open');
+    drawer.classList.add('show');
     document.body.classList.add('hc-noscroll');
-  }
-  function closeDrawer(){
+    overlay.setAttribute('aria-hidden', 'false');
+  };
+
+  const closeDrawer = () => {
+    // harden
+    try{
+      const d=document.getElementById('accountsDrawer');
+      const o=document.getElementById('drawerOverlay');
+      if(d){ d.style.transform='translateX(105%)'; }
+      if(o){ o.style.opacity='0'; setTimeout(()=>{ o.style.display='none'; }, 200); }
+    }catch(e){}
+
+    drawer.classList.remove('show');
     overlay.classList.remove('show');
-    drawer.classList.remove('show','open');
     document.body.classList.remove('hc-noscroll');
+    overlay.setAttribute('aria-hidden', 'true');
+  };
+
+  // Guard: prevent multiple bindings
+  if (!openBtn.dataset.hcBound) {
+    openBtn.dataset.hcBound = '1';
+    openBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      openDrawer();
+    }, {passive:false});
   }
 
-  // expose for other scripts
-  window.HC_openDrawer = openDrawer;
-  window.HC_closeDrawer = closeDrawer;
+  if (closeBtn && !closeBtn.dataset.hcBound) {
+    closeBtn.dataset.hcBound = '1';
+    closeBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      closeDrawer();
+    }, {passive:false});
+  }
 
-  // capture + touch to avoid "click eaten" issues
-  const openHandler = (e)=>{ try{ e.preventDefault(); }catch(_){} try{ e.stopPropagation(); }catch(_){} openDrawer(); };
-  gear.addEventListener('click', openHandler, true);
-  gear.addEventListener('touchend', openHandler, {capture:true, passive:false});
+  if (!overlay.dataset.hcBound) {
+    overlay.dataset.hcBound = '1';
+    overlay.addEventListener('click', (e) => {
+      e.preventDefault();
+      closeDrawer();
+    }, {passive:false});
+  }
 
-  overlay.addEventListener('click', closeDrawer, true);
-  document.addEventListener('keydown', (e)=>{ if(e.key === 'Escape') closeDrawer(); });
+  // ESC close (desktop)
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && drawer.classList.contains('show')) closeDrawer();
+  });
 
-  const closeBtn =
-    drawer.querySelector('#drawerCloseBtn') ||
-    drawer.querySelector('.drawerCloseBtn') ||
-    drawer.querySelector('.drawerHeader .closeBtn') ||
-    drawer.querySelector('.drawerHeader button');
-  if(closeBtn) closeBtn.addEventListener('click', closeDrawer, true);
+  // Expose for debugging
+  window.hcOpenDrawer = openDrawer;
+  window.hcCloseDrawer = closeDrawer;
 })();
 </script>
 
