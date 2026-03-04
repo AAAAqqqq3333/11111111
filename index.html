@@ -12,6 +12,7 @@
 <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>SNS Hyper Core</title>
+<!-- v33 -->
 
   <style>
 body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Hiragino Sans", "Noto Sans JP", sans-serif; margin: 16px; line-height: 1.4; }
@@ -835,7 +836,7 @@ details.hc-acc[open] .hc-acc-chevron{ transform: rotate(-135deg); }
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
   display: none;
-  z-index: 9997;
+  z-index: 9999;
 }
 #drawerOverlay.show{ display:block; pointer-events:auto; }
 
@@ -846,7 +847,7 @@ details.hc-acc[open] .hc-acc-chevron{ transform: rotate(-135deg); }
   width: min(92vw, 520px);
   transform: translateX(105%);
   transition: transform .22s ease;
-  z-index: 9999;
+  z-index: 10000;
   background: rgba(12,14,20,.92);
   border-left: 1px solid rgba(255,255,255,.10);
   box-shadow: -20px 0 80px rgba(0,0,0,.55);
@@ -859,7 +860,7 @@ details.hc-acc[open] .hc-acc-chevron{ transform: rotate(-135deg); }
   display:flex;
   align-items:center;
   justify-content:space-between;
-  padding: 14px 14px;
+  padding: calc(14px + env(safe-area-inset-top)) 14px;
   border-bottom: 1px solid rgba(255,255,255,.08);
 }
 .drawerTitle{
@@ -1076,8 +1077,8 @@ body { min-height:100vh; }
   align-items: center;
 }
 .policyLinks a{
-  font-size: 13px;
-  padding: 8px 12px;
+  font-size: 11px;
+  padding: 8px 10px;
   border-radius: 999px;
   text-decoration: none;
   opacity: .9;
