@@ -1016,7 +1016,7 @@ body { min-height:100vh; }
   background: rgba(0,0,0,.55);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
-  z-index: 10050;
+  z-index: 20000;
   padding: 12px;
 }
 .hc-sheet-overlay.show{ display:flex; }
@@ -3371,6 +3371,19 @@ function hcScrollToOutput(){
     </div>
     <div class="muted" style="margin-top:8px; font-size:12px;">※別タブで開きます</div>
   </div>
+
+
+<script>
+/* --- Hotfix: ensure account detail sheet is attached to <body> so it always shows correctly (iOS + drawer) --- */
+(function(){
+  try{
+    const ov = document.getElementById('accDetailOverlay');
+    if(ov && ov.parentElement !== document.body){
+      document.body.appendChild(ov);
+    }
+  }catch(e){}
+})();
+</script>
 
 </body>
 </html>
