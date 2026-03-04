@@ -1,12 +1,20 @@
 <!doctype html>
 <html lang="ja">
 <head>
-  <meta charset="utf-8" />
+  <script>
+(function(){
+  try{
+    var ua = navigator.userAgent || "";
+    if (/Orion/i.test(ua)) document.documentElement.classList.add('is-orion');
+  }catch(e){}
+})();
+</script>
+<meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>SNS Hyper Core</title>
 
   <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Hiragino Sans", "Noto Sans JP", sans-serif; margin: 16px; line-height: 1.4; }
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Hiragino Sans", "Noto Sans JP", sans-serif; margin: 16px; line-height: 1.4; }
     .tabbtn { border:1px solid #ddd; background:#fff; color:#111; border-radius:999px; padding:8px 12px; cursor:pointer; }
 .tabbtn.active { border-color:#111; background:#111; color:#fff; }
     select { background:#fff; color:#111; }
@@ -829,7 +837,7 @@ details.hc-acc[open] .hc-acc-chevron{ transform: rotate(-135deg); }
   display: none;
   z-index: 9997;
 }
-#drawerOverlay.show{ display:block; }
+#drawerOverlay.show{ display:block; pointer-events:auto; }
 
 #accountsDrawer{
   position: fixed;
@@ -1019,6 +1027,150 @@ body { min-height:100vh; }
   flex-wrap:wrap;
 }
 
+
+/* --- Drawer (Settings / Accounts) --- */
+.drawerOverlay{
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,.55);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  opacity: 0; pointer-events: none;
+  transition: opacity .18s ease;
+  z-index: 9998;
+}
+.drawerOverlay.show{ opacity: 1; pointer-events: auto; }
+
+.drawerPanel{
+  position: fixed;
+  top: 0; right: 0;
+  height: 100svh;
+  width: min(92vw, 420px);
+  transform: translateX(105%);
+  transition: transform .24s ease;
+  z-index: 9999;
+  padding: calc(14px + env(safe-area-inset-top)) 14px calc(14px + env(safe-area-inset-bottom));
+  overflow: auto;
+}
+.drawerPanel.show{ transform: translateX(0); }
+
+.drawerPanel .glass,
+.drawerPanel .panel{
+  width: 100%;
+}
+
+.drawerPanelHeader{
+  display:flex; align-items:center; justify-content:space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.drawerPanelHeader .title{
+  font-weight: 900;
+  letter-spacing: .5px;
+}
+
+/* Policy links: smaller + less "floating" */
+.policyLinks{
+  display:flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.policyLinks a{
+  font-size: 13px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  text-decoration: none;
+  opacity: .9;
+}
+.policyLinks a:hover{ opacity: 1; }
+.policyNote{
+  font-size: 12px;
+  opacity: .65;
+  margin-top: 10px;
+}
+  /* legal / policy links (smaller, subtle) */
+  .legalLinks{
+    display:flex;
+    gap:10px;
+    flex-wrap:wrap;
+    align-items:center;
+    justify-content:flex-start;
+  }
+  .legalLinks a{
+    text-decoration:none;
+    font-weight:800;
+    font-size:12px;
+    padding:8px 12px;
+    border-radius:14px;
+    background:rgba(255,255,255,.06);
+    border:1px solid rgba(255,255,255,.12);
+    color:rgba(255,255,255,.86);
+    box-shadow:inset 0 0 0 1px rgba(0,0,0,.15);
+  }
+  .legalLinks a:active{ transform: translateY(1px); }
+
+
+
+  /* Drawer text safety */
+  #accountsDrawer .drawerHeaderTitle,
+  #accountsDrawer h2,#accountsDrawer h3,#accountsDrawer h4,
+  #accountsDrawer label,
+  #accountsDrawer .muted,
+  #accountsDrawer .tabBtn,
+  #accountsDrawer .accTitle,
+  #accountsDrawer .accSub{
+    color: rgba(240,248,255,0.96);
+  }
+  #accountsDrawer .muted{ color: rgba(240,248,255,0.72); }
+
+/* ===== Orion (WebKit) rendering fixes =====
+   Orion sometimes disables/limits backdrop-filter, making glass surfaces look flat black.
+   These rules: (1) ensure -webkit-backdrop-filter is always present, (2) lighten surface fills.
+*/
+@supports (-webkit-backdrop-filter: blur(1px)) {
+  .hcGlass, .hcCard, .hcSection, .hcPanel,
+  .hcHeader, .hcDrawer, .hcModalPanel, .hcModalBackdrop,
+  .hc-modal, .hc-modal-backdrop, table thead th{
+    -webkit-backdrop-filter: blur(10px);
+  }
+}
+/* UA-targeted fallback */
+html.is-orion body{
+  /* slightly brighter base so "black blocks" don't appear */
+  color-scheme: dark;
+}
+html.is-orion input,
+html.is-orion textarea,
+html.is-orion select{
+  background: rgba(255,255,255,0.07) !important;
+  border-color: rgba(255,255,255,0.20) !important;
+  box-shadow: inset 0 0 0 1px rgba(0,229,255,0.10);
+}
+html.is-orion ::placeholder{
+  color: rgba(255,255,255,0.55) !important;
+}
+html.is-orion .hcHint,
+html.is-orion .hcHintBox,
+html.is-orion .hcHelp,
+html.is-orion .hcSubtext,
+html.is-orion .hcInfoNote,
+html.is-orion .hcSmallNote,
+html.is-orion .hcExample,
+html.is-orion .muted{
+  background: rgba(255,255,255,0.06) !important;
+  color: rgba(255,255,255,0.82) !important;
+}
+html.is-orion .hcModalBackdrop,
+html.is-orion .hc-modal-backdrop{
+  background: rgba(0,0,0,0.60) !important;
+}
+html.is-orion .hcModalPanel,
+html.is-orion .hc-modal{
+  background: rgba(16,20,28,0.72) !important;
+}
+html.is-orion table thead th{
+  background: rgba(16,20,28,0.78) !important;
+}
 </style>
 
 <script>
@@ -1201,7 +1353,6 @@ function removeUndefinedFields(obj){
 </div>
   
 <!-- current account card removed (use gear settings) -->
->
  <!-- /pageMain -->
 
   <!-- pageAccounts moved into drawer -->
@@ -2885,6 +3036,20 @@ function openModal(){
 
     const btn = findTopButton();
     if(btn) ensureLabel(btn);
+
+    // Drawer bindings (gear -> open, overlay/X -> close)
+    const gear = document.getElementById('topGearBtn');
+    const drawer = document.getElementById('accountsDrawer');
+    const overlay = document.getElementById('drawerOverlay');
+    const closeBtn = document.getElementById('drawerCloseBtn');
+
+    if(gear && drawer && overlay){
+      gear.addEventListener('click', (e)=>{ e.preventDefault(); openDrawer(); });
+      overlay.addEventListener('click', closeDrawer);
+      if(closeBtn) closeBtn.addEventListener('click', closeDrawer);
+      // ESC close (desktop)
+      document.addEventListener('keydown', (ev)=>{ if(ev.key==='Escape') closeDrawer(); });
+    }
   }
   if(document.readyState === 'loading'){
     document.addEventListener('DOMContentLoaded', init);
@@ -3037,9 +3202,9 @@ function hcScrollToOutput(){
   <!-- Floating Settings (Accounts Drawer) -->
   
 
-  <div id="drawerOverlay" aria-hidden="true"></div>
+  <div id="drawerOverlay" class="drawerOverlay" aria-hidden="true"></div>
   <aside id="accountsDrawer" class="drawer" aria-hidden="true">
-  <div id="drawerOverlay" class="drawerOverlay" tabindex="-1"></div>
+  
   <div class="drawerPanel" role="dialog" aria-modal="true" aria-label="設定 / アカウント">
     <div class="drawerHeader">
       <div class="drawerTitle">設定 / アカウント</div>
@@ -3056,7 +3221,7 @@ function hcScrollToOutput(){
           <h2 style="margin:0 0 8px; font-size:16px;">Xアカウント</h2>
           <div class="muted">※入力内容はこの端末のブラウザ保存領域に保存されます（端末共有/紛失には注意）。</div>
 
-          <details class="hc-acc" open>
+          <details class="hc-acc">
             <summary>
               <span>アカウント登録</span>
               <span class="hc-acc-chevron"></span>
@@ -3094,7 +3259,7 @@ function hcScrollToOutput(){
 
               <div>
                 <div class="muted" style="margin-bottom:8px;">スプレッドシート（CSV/TSV/XLSX）一括取り込み</div>
-                <div class="btns" style="flex-wrap:wrap; gap:10px;">
+                <div class="policyLinks">
                   <button class="secondary" id="accImportBtn" type="button">ファイル選択</button>
                   <input id="accImportFile" type="file" accept=".csv,.tsv,.xlsx" style="display:none;" />
                   <button class="secondary" id="accExportBtn" type="button">エクスポート</button>
@@ -3107,7 +3272,7 @@ function hcScrollToOutput(){
             </div>
           </details>
 
-          <details class="hc-acc" open style="margin-top:12px;">
+          <details class="hc-acc" style="margin-top:12px;">
             <summary>
               <span>アカウント一覧</span>
               <span class="hc-acc-chevron"></span>
@@ -3325,12 +3490,12 @@ function hcScrollToOutput(){
 
   <div class="card" style="margin-top:12px;">
     <div style="font-weight:900; letter-spacing:.06em; margin-bottom:10px;">法務・ポリシー</div>
-    <div class="btns" style="flex-wrap:wrap; gap:10px;">
+    <div class="legalLinks">
       <a class="primary" href="./tokutei.html" target="_blank" rel="noopener">特商法</a>
       <a class="secondary" href="./terms.html" target="_blank" rel="noopener">利用規約</a>
       <a class="secondary" href="./privacy.html" target="_blank" rel="noopener">プライバシー</a>
     </div>
-    <div class="muted" style="margin-top:8px; font-size:12px;">※別タブで開きます</div>
+    <div class="muted" style="margin-top:8px; font-size:12px;"><span class="policyNote">※別タブで開きます</span></div>
   </div>
 
 </body>
