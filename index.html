@@ -2377,13 +2377,52 @@ $("activateBtn").addEventListener("click", async () => {
         }
         return "";
       };
-      const label = get("label","ラベル","name","名称","アカウント名","account","acct");
-      const x_id  = get("x_id","xid","X ID","x","id","ユーザー","user","ユーザーID","ユーザー名","アカウント","account_id","x_account");
-      const x_pass= get("x_pass","xpass","X PASS","pass","password","パス","パスワード","Xパスワード");
-      const mail  = get("mail","email","メール","メールアドレス","mail_addr","email_addr");
-      const mail_pass = get("mail_pass","mailpass","メールパス","メールパスワード","mail_password","email_password");
-      const memo  = get("memo","note","備考","メモ");
-      const normalized = { label: label || (x_id ? `@${x_id}` : ""), x_id, x_pass, mail, mail_pass, memo };
+      const label = cleanValue(get("label","ラベル","name","名称","アカウント名","account","acct"));
+
+    const x_id  = cleanValue(get(
+      "x_id","xid","screen","X ID","x","id",
+      "ユーザー","user","ユーザーID","ユーザー名",
+      "アカウント","account_id","x_account"
+    ));
+
+    const x_pass= cleanValue(get(
+      "x_pass","xpass","password","X PASS",
+      "pass","パス","パスワード","Xパスワード"
+    ));
+
+    const mail  = cleanValue(get(
+      "mail","email","メール","メールアドレス","mail_addr","email_addr"
+    ));
+
+    const mail_pass = cleanValue(get(
+      "mail_pass","mailpass","mailpw",
+      "メールパス","メールパスワード","mail_password","email_password"
+    ));
+
+    const reg_number = cleanValue(get(
+      "reg_number","reg","登録番号","regno","registration","registration_number"
+    ));
+
+    const auth = cleanValue(get(
+      "auth","認証","認証コード","auth_code","authcode"
+    ));
+
+    const twofa_link = cleanValue(get(
+      "2FA_link","2fa_link","2fa","otp_link","twofa","twofa_link"
+    ));
+
+    const backup_code = cleanValue(get(
+      "backupcode","backup_code","backup","backup_codes","backupcodes"
+    ));
+
+    const memo  = cleanValue(get("memo","note","備考","メモ"));
+
+    const normalized = {
+      label: label || (x_id ? `@${x_id}` : ""),
+      x_id, x_pass, mail, mail_pass,
+      reg_number, auth, twofa_link, backup_code,
+      memo
+    };
       for (const k of Object.keys(normalized)) {
         if (normalized[k] === "-" || normalized[k] === "—") normalized[k] = "";
       }
@@ -2413,6 +2452,10 @@ $("activateBtn").addEventListener("click", async () => {
           if (acct.mail) cur.mail = acct.mail;
           if (acct.mail_pass) cur.mail_pass = acct.mail_pass;
           if (acct.memo) cur.memo = acct.memo;
+        if (acct.reg_number) cur.reg_number = acct.reg_number;
+        if (acct.auth) cur.auth = acct.auth;
+        if (acct.twofa_link) cur.twofa_link = acct.twofa_link;
+        if (acct.backup_code) cur.backup_code = acct.backup_code;
           updated++;
         } else {
           if (!acct.x_id) { skipped++; continue; }
@@ -3170,7 +3213,16 @@ function hcScrollToOutput(){
                 <label>メール パスワード</label>
                 <input id="accMailPw" type="text" placeholder="mail password" />
 
-                <label>メールパス（任意）</label>
+                
+        <label>登録番号</label>
+        <input id="accRegNumber" type="text" placeholder="reg_number">
+        <label>認証</label>
+        <input id="accAuth" type="text" placeholder="auth">
+        <label>2FAリンク</label>
+        <input id="acc2FALink" type="text" placeholder="2FA_link">
+        <label>バックアップコード</label>
+        <input id="accBackupCode" type="text" placeholder="backupcode">
+<label>メールパス（任意）</label>
                 <input id="accMailPath" placeholder="例: https://mail.example.com/ など" />
 
                 <label>メモ（任意）</label>
