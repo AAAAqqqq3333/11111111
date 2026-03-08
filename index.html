@@ -1655,18 +1655,33 @@ body.hc-embed-x #topGearBtn{
 
 
 
-<style id="hc-v7-mobile-menu-fix">
-/* v7: mobile menu button must stay visible even when account panel is embedded in X tab */
+<style id="hc-v8-mobile-menu-fix">
+/* v8: keep the mobile menu button visible, and allow the drawer/overlay to actually open */
 @media (max-width: 1099px){
   body.hc-embed-x .mobile-nav-toggle,
   body.hc-embed-x #mobileNavToggle{
     display:block !important;
   }
   body.hc-embed-x .mobile-nav-overlay,
-  body.hc-embed-x #mobileNavOverlay,
+  body.hc-embed-x #mobileNavOverlay{
+    display:none !important;
+  }
+  body.hc-embed-x .mobile-nav-overlay.show,
+  body.hc-embed-x #mobileNavOverlay.show{
+    display:block !important;
+  }
   body.hc-embed-x .mobile-nav-drawer,
   body.hc-embed-x #mobileNavDrawer{
-    display:none;
+    display:block !important;
+    transform: translateX(-105%);
+    visibility: hidden;
+    pointer-events: none;
+  }
+  body.hc-embed-x .mobile-nav-drawer.show,
+  body.hc-embed-x #mobileNavDrawer.show{
+    transform: translateX(0) !important;
+    visibility: visible !important;
+    pointer-events: auto !important;
   }
 }
 </style>
@@ -5970,5 +5985,44 @@ body.hc-desktop-mode #sectionSettings > .card{
 })();
 </script>
 
+
+<script id="hc-v8-mobile-menu-script">
+(function(){
+  function bindMobileMenu(){
+    var toggle = document.getElementById('mobileNavToggle');
+    var overlay = document.getElementById('mobileNavOverlay');
+    var drawer = document.getElementById('mobileNavDrawer');
+    var closeBtn = document.getElementById('mobileNavClose');
+    if(!toggle || !overlay || !drawer || toggle.dataset.hcV8Bound) return;
+
+    function openMenu(){
+      overlay.classList.add('show');
+      drawer.classList.add('show');
+      drawer.setAttribute('aria-hidden','false');
+      document.body.style.overflow = 'hidden';
+    }
+    function closeMenu(){
+      overlay.classList.remove('show');
+      drawer.classList.remove('show');
+      drawer.setAttribute('aria-hidden','true');
+      document.body.style.overflow = '';
+    }
+
+    toggle.dataset.hcV8Bound = '1';
+    toggle.addEventListener('click', function(e){ e.preventDefault(); openMenu(); }, {passive:false});
+    toggle.addEventListener('touchend', function(e){ e.preventDefault(); openMenu(); }, {passive:false});
+    overlay.addEventListener('click', closeMenu);
+    closeBtn && closeBtn.addEventListener('click', closeMenu);
+    document.addEventListener('keydown', function(e){ if(e.key === 'Escape') closeMenu(); });
+  }
+
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', bindMobileMenu);
+  } else {
+    bindMobileMenu();
+  }
+  setTimeout(bindMobileMenu, 150);
+})();
+</script>
 </body>
 </html>
