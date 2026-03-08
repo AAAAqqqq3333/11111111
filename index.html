@@ -1114,6 +1114,17 @@ body { min-height:100vh; }
 .kpi-box .num{font-size:22px;font-weight:900}
 @media (max-width:900px){.threads-grid-2,.kpi-row{grid-template-columns:1fr}}
 
+
+.backend-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.job-list{display:grid;gap:10px;margin-top:12px}
+.job-item{padding:12px;border-radius:14px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.05)}
+.job-head{display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap}
+.codebox{white-space:pre-wrap;word-break:break-word;padding:12px;border-radius:14px;border:1px solid rgba(255,255,255,.12);background:rgba(10,14,20,.70);margin-top:10px}
+.smallpill{display:inline-flex;align-items:center;padding:4px 10px;border-radius:999px;border:1px solid rgba(255,255,255,.12);font-size:12px;background:rgba(255,255,255,.06)}
+.sched-list{display:grid;gap:10px;margin-top:12px}
+.sched-item{padding:12px;border-radius:14px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.05)}
+@media (max-width:900px){.backend-grid{grid-template-columns:1fr}}
+
 </style>
 
 <script>
@@ -1487,6 +1498,8 @@ function removeUndefinedFields(obj){
             <button class="tabbtn" type="button" data-threadstab="dm">DM連携</button>
             <button class="tabbtn" type="button" data-threadstab="settings">設定</button>
             <button class="tabbtn" type="button" data-threadstab="automation">自動処理</button>
+            <button class="tabbtn" type="button" data-threadstab="backend">連携</button>
+            <button class="tabbtn" type="button" data-threadstab="schedule">予約</button>
             <button class="tabbtn" type="button" data-threadstab="monitor">監視</button>
             <button class="tabbtn" type="button" data-threadstab="export">出力</button>
           </div>
@@ -1684,6 +1697,84 @@ function removeUndefinedFields(obj){
                 <div style="font-weight:800; margin-bottom:8px;">データ出力ログ</div>
                 <div class="muted">最近の書き出し履歴を表示します。</div>
                 <div id="threadsExportLog" class="export-list"></div>
+              </div>
+            </div>
+          </div>
+
+          
+          <div class="threads-tabpanel" id="threadsTab_backend">
+            <div class="backend-grid">
+              <div class="card">
+                <div style="font-weight:800; margin-bottom:8px;">バックエンド連携設定</div>
+                <div class="muted">Cloudflare Workers や独自APIをここに登録して、後から本番接続しやすくします。</div>
+                <label>Threads Worker URL</label>
+                <input id="threadsBackendUrl" placeholder="https://your-worker.workers.dev" />
+                <label>Webhook Secret</label>
+                <input id="threadsWebhookSecret" placeholder="任意" />
+                <label>Instagram DM Endpoint</label>
+                <input id="threadsDmEndpoint" placeholder="https://your-api.example.com/instagram/dm" />
+                <div class="btns">
+                  <button type="button" id="threadsSaveBackendBtn">連携設定を保存</button>
+                </div>
+                <div class="muted" id="threadsBackendStatus" style="margin-top:10px;">まだ保存していません。</div>
+              </div>
+              <div class="card">
+                <div style="font-weight:800; margin-bottom:8px;">Webhook受信テスト</div>
+                <div class="muted">Threadsのコメント通知を想定したJSONを入れて、取り込み処理をテストします。</div>
+                <label>テストJSON</label>
+                <textarea id="threadsWebhookPayload" placeholder='{"post":"https://threads.net/t/demo","user":"@demo_user","comment":"詳細ほしいです"}'></textarea>
+                <div class="btns">
+                  <button type="button" id="threadsWebhookTestBtn">受信テスト</button>
+                  <button type="button" class="secondary" id="threadsWebhookSampleBtn">サンプル投入</button>
+                </div>
+                <div class="codebox" id="threadsWebhookResult">ここに結果が表示されます。</div>
+              </div>
+            </div>
+
+            <div class="row" style="margin-top:12px;">
+              <div class="card">
+                <div style="font-weight:800; margin-bottom:8px;">ジョブキュー</div>
+                <div class="muted">自動返信・DM候補生成・送信失敗をローカルで積んで確認できます。</div>
+                <div id="threadsJobQueue" class="job-list"></div>
+                <div class="btns">
+                  <button type="button" class="secondary" id="threadsRunPendingJobsBtn">保留ジョブを再実行</button>
+                  <button type="button" class="secondary danger" id="threadsClearJobsBtn">ジョブ全削除</button>
+                </div>
+              </div>
+              <div class="card">
+                <div style="font-weight:800; margin-bottom:8px;">本番接続メモ</div>
+                <div class="muted">今はローカル保存まで対応。後から fetch 先だけ差し替えれば本番接続へ移行できます。</div>
+                <div class="codebox" id="threadsBackendGuide">1. Worker URL を保存
+2. Webhook テストで JSON を投入
+3. ジョブキューで処理確認
+4. 実API接続後に fetch 先を差し替え</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="threads-tabpanel" id="threadsTab_schedule">
+            <div class="row">
+              <div class="card">
+                <div style="font-weight:800; margin-bottom:8px;">予約ジョブ作成</div>
+                <div class="muted">コメント処理やDM候補生成を予約実行する想定のローカルスケジューラーです。</div>
+                <label>ジョブ名</label>
+                <input id="threadsScheduleTitle" placeholder="例：朝のコメントチェック" />
+                <label>実行日時</label>
+                <input id="threadsScheduleAt" type="datetime-local" />
+                <label>内容メモ</label>
+                <textarea id="threadsScheduleMemo" placeholder="例：投稿Aのコメント監視を実行"></textarea>
+                <div class="btns">
+                  <button type="button" id="threadsSaveScheduleBtn">予約を保存</button>
+                  <button type="button" class="secondary" id="threadsRunScheduleNowBtn">今すぐテスト実行</button>
+                </div>
+              </div>
+              <div class="card">
+                <div style="font-weight:800; margin-bottom:8px;">予約一覧</div>
+                <div class="muted">あとで Cloudflare Cron / Queue に置き換える前提の管理画面です。</div>
+                <div id="threadsScheduleList" class="sched-list"></div>
+                <div class="btns">
+                  <button type="button" class="secondary danger" id="threadsClearSchedulesBtn">予約全削除</button>
+                </div>
               </div>
             </div>
           </div>
