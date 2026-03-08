@@ -1093,6 +1093,16 @@ body { min-height:100vh; }
 .threads-tabpanel{display:none;}
 .threads-tabpanel.active{display:block;}
 .threads-mini{font-size:12px;color:#9fb0c6;}
+.threads-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.threads-actions button{padding:8px 12px;font-size:12px;border-radius:12px}
+.threads-stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:12px}
+.threads-stat{padding:12px;border-radius:14px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.05)}
+.threads-stat .n{font-size:24px;font-weight:900}
+.threads-log{display:grid;gap:10px;margin-top:12px}
+.threads-log-item{padding:12px;border-radius:14px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.05)}
+.threads-log-time{font-size:11px;opacity:.72;margin-bottom:4px}
+.threads-badge{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.06);font-size:12px}
+@media (max-width:900px){.threads-stat-grid{grid-template-columns:repeat(2,1fr)}}
 
 </style>
 
@@ -1236,6 +1246,18 @@ function removeUndefinedFields(obj){
             <div class="card"><div style="font-weight:800;">Telegram</div><div class="muted" style="margin-top:6px;">Bot送信 / 予約投稿</div></div>
             <div class="card"><div style="font-weight:800;">Threads</div><div class="muted" style="margin-top:6px;">条件返信 / リード管理を追加予定</div></div>
           </div>
+
+          <div class="card" style="margin-top:12px;">
+            <div style="font-weight:800; margin-bottom:8px;">Threadsサマリー</div>
+            <div id="dashboardThreadsSummary" class="muted">Threadsデータを集計して表示します。</div>
+            <div class="threads-stat-grid" id="dashboardThreadsStats"></div>
+          </div>
+          <div class="card" style="margin-top:12px;">
+            <div style="font-weight:800; margin-bottom:8px;">アクティビティログ</div>
+            <div class="muted">Threadsの保存・シミュレーション・DM候補生成などをここに記録します。</div>
+            <div id="dashboardActivityLog" class="threads-log"></div>
+          </div>
+
         </div>
       </section>
 
@@ -1433,6 +1455,7 @@ function removeUndefinedFields(obj){
             <button class="tabbtn" type="button" data-threadstab="leads">リード一覧</button>
             <button class="tabbtn" type="button" data-threadstab="dm">DM連携</button>
             <button class="tabbtn" type="button" data-threadstab="settings">設定</button>
+            <button class="tabbtn" type="button" data-threadstab="automation">自動処理</button>
           </div>
 
           <div class="threads-tabpanel active" id="threadsTab_posts">
@@ -1505,6 +1528,8 @@ function removeUndefinedFields(obj){
               </div>
               <div class="card">
                 <div style="font-weight:800; margin-bottom:8px;">リード一覧</div>
+                <label>表示フィルタ</label>
+                <select id="threadsLeadFilter"><option value="all">すべて</option><option value="新規">新規</option><option value="対応中">対応中</option><option value="DM候補作成済み">DM候補作成済み</option><option value="完了">完了</option></select>
                 <div class="muted">コメントしてきた相手を保存し、後からDM候補を作る前提の一覧です。</div>
                 <div id="threadsLeadsList" class="out" style="margin-top:12px;"></div>
               </div>
@@ -1543,6 +1568,38 @@ function removeUndefinedFields(obj){
             </div>
           </div>
 
+          
+          <div class="threads-tabpanel" id="threadsTab_automation">
+            <div class="row">
+              <div class="card">
+                <div style="font-weight:800; margin-bottom:8px;">コメント自動処理シミュレーター</div>
+                <div class="muted">保存したルールがどう動くかをローカルで検証できます。</div>
+                <label>投稿ID / URL</label>
+                <input id="threadsSimPost" placeholder="https://threads.net/t/example" />
+                <label>ユーザー名</label>
+                <input id="threadsSimUser" placeholder="@demo_user" />
+                <label>コメント本文</label>
+                <textarea id="threadsSimComment" placeholder="例：詳細ほしいです"></textarea>
+                <div class="btns">
+                  <button type="button" id="threadsRunSimulationBtn">自動処理を実行</button>
+                  <button type="button" class="secondary" id="threadsGenerateDmOnlyBtn">DM候補だけ作成</button>
+                </div>
+                <div class="muted" id="threadsSimulationResult" style="margin-top:10px;">まだ実行していません。</div>
+              </div>
+              <div class="card">
+                <div style="font-weight:800; margin-bottom:8px;">自動処理結果</div>
+                <div class="muted">一致したルール・公開返信・DM候補を確認できます。</div>
+                <div class="item" style="margin-top:12px;">
+                  <pre id="threadsAutomationPreview">ここに実行結果が表示されます。</pre>
+                </div>
+                <div class="threads-actions">
+                  <button type="button" class="secondary" id="threadsCopyAutomationReplyBtn">実行結果をコピー</button>
+                  <button type="button" class="secondary" id="threadsCopyAutomationDmBtn">DM候補をコピー</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <div class="threads-tabpanel" id="threadsTab_settings">
             <div class="row">
               <div class="card">
@@ -1562,6 +1619,7 @@ function removeUndefinedFields(obj){
               <div class="card">
                 <div style="font-weight:800; margin-bottom:8px;">Threadsサマリー</div>
                 <div id="threadsSummary" class="muted">保存データを集計して表示します。</div>
+                <div id="threadsActivitySummary" class="threads-log" style="margin-top:12px;"></div>
                 <div class="btns" style="margin-top:12px;">
                   <button class="secondary" type="button" id="threadsSeedDemoBtn">デモデータを入れる</button>
                   <button class="secondary danger" type="button" id="threadsClearAllBtn">Threadsデータ全削除</button>
@@ -3977,6 +4035,285 @@ function hcScrollToOutput(){
     }
 
     renderPosts(); renderRules(); renderLeads(); renderDm(); renderSummary();
+  }
+
+  if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bind);
+  else bind();
+})();
+</script>
+
+
+<script>
+(() => {
+  const LS = {
+    posts: 'threads_posts_v1',
+    rules: 'threads_rules_v1',
+    leads: 'threads_leads_v1',
+    dm: 'threads_dm_v1',
+    settings: 'threads_settings_v1',
+    logs: 'threads_logs_v1',
+    run: 'threads_last_run_v1'
+  };
+  const read = (key, fallback) => { try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; } catch(e){ return fallback; } };
+  const write = (key, value) => localStorage.setItem(key, JSON.stringify(value));
+  const uid = () => (crypto.randomUUID ? crypto.randomUUID() : ('t_' + Math.random().toString(16).slice(2) + Date.now()));
+  const esc = (s) => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  const nowIso = () => new Date().toISOString();
+  const jpTime = (iso) => { try { return new Date(iso).toLocaleString('ja-JP'); } catch(e){ return iso || ''; } };
+
+  function toast(msg){
+    let t = document.getElementById('threadsToast');
+    if(!t){
+      t = document.createElement('div');
+      t.id = 'threadsToast';
+      t.style.cssText = 'position:fixed;left:50%;bottom:22px;transform:translateX(-50%);padding:10px 14px;border-radius:999px;border:1px solid rgba(255,255,255,.18);background:rgba(12,14,20,.92);color:#fff;font-weight:900;font-size:13px;z-index:30000;opacity:0;transition:opacity .15s ease;';
+      document.body.appendChild(t);
+    }
+    t.textContent = msg;
+    t.style.opacity = '1';
+    clearTimeout(t._tm);
+    t._tm = setTimeout(()=>t.style.opacity='0', 1400);
+  }
+
+  async function copyText(text){
+    const s = String(text || '');
+    try{
+      await navigator.clipboard.writeText(s);
+      return true;
+    }catch(e){
+      try{
+        const ta = document.createElement('textarea');
+        ta.value = s;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        ta.remove();
+        return true;
+      }catch(err){ return false; }
+    }
+  }
+
+  function addLog(type, message, meta = {}){
+    const settings = read(LS.settings, {});
+    const limit = Number(settings.logLimit || 100);
+    const logs = read(LS.logs, []);
+    logs.unshift({ id: uid(), type, message, meta, createdAt: nowIso() });
+    write(LS.logs, logs.slice(0, Math.max(10, limit)));
+    renderLogs();
+    renderDashboard();
+  }
+
+  function buildDmCandidate(user, comment){
+    const dm = read(LS.dm, { template:'ありがとうございます。詳細案内はこちらです。必要ならそのまま返信ください。' });
+    const tpl = dm.template || 'ありがとうございます。詳細案内はこちらです。必要ならそのまま返信ください。';
+    return tpl.replace(/\{\{\s*username\s*\}\}/g, user || '').replace(/\{\{\s*comment\s*\}\}/g, comment || '');
+  }
+
+  function matchRule(comment){
+    const rules = read(LS.rules, []);
+    const lower = String(comment || '').toLowerCase();
+    return rules.find(rule => (rule.keywords || []).some(k => lower.includes(String(k).toLowerCase())));
+  }
+
+  function renderLogs(){
+    const logs = read(LS.logs, []);
+    const html = logs.slice(0, 8).map(x => `
+      <div class="threads-log-item">
+        <div class="threads-log-time">${esc(jpTime(x.createdAt))}</div>
+        <div><span class="threads-badge">${esc(x.type)}</span></div>
+        <div style="margin-top:8px;">${esc(x.message)}</div>
+      </div>`).join('') || '<div class="muted">まだログはありません。</div>';
+    const a = document.getElementById('threadsActivitySummary');
+    const b = document.getElementById('dashboardActivityLog');
+    if(a) a.innerHTML = html;
+    if(b) b.innerHTML = html;
+  }
+
+  function renderDashboard(){
+    const posts = read(LS.posts, []);
+    const rules = read(LS.rules, []);
+    const leads = read(LS.leads, []);
+    const logs = read(LS.logs, []);
+    const dm = read(LS.dm, { mode:'off' });
+
+    const summary = document.getElementById('dashboardThreadsSummary');
+    if(summary){
+      const latest = logs[0];
+      summary.innerHTML = `
+        保存投稿 <b>${posts.length}</b>件 / ルール <b>${rules.length}</b>件 / リード <b>${leads.length}</b>件<br>
+        DMモード <b>${esc(dm.mode || 'off')}</b>${latest ? `<br>最新ログ: <b>${esc(latest.message)}</b>` : ''}
+      `;
+    }
+
+    const stats = document.getElementById('dashboardThreadsStats');
+    if(stats){
+      const newCount = leads.filter(x => x.status === '新規').length;
+      const dmCount = leads.filter(x => x.dmCandidate).length;
+      const doneCount = leads.filter(x => x.status === '完了').length;
+      stats.innerHTML = `
+        <div class="threads-stat"><div class="threads-mini">新規リード</div><div class="n">${newCount}</div></div>
+        <div class="threads-stat"><div class="threads-mini">DM候補あり</div><div class="n">${dmCount}</div></div>
+        <div class="threads-stat"><div class="threads-mini">完了</div><div class="n">${doneCount}</div></div>
+        <div class="threads-stat"><div class="threads-mini">ログ件数</div><div class="n">${logs.length}</div></div>
+      `;
+    }
+  }
+
+  function saveLeadRecord(payload){
+    const arr = read(LS.leads, []);
+    arr.unshift({ id: uid(), createdAt: nowIso(), ...payload });
+    write(LS.leads, arr);
+  }
+
+  function rerenderLeadListIfPossible(){
+    const filter = document.getElementById('threadsLeadFilter')?.value || 'all';
+    const list = read(LS.leads, []);
+    const el = document.getElementById('threadsLeadsList');
+    if(!el) return;
+    const filtered = filter === 'all' ? list : list.filter(x => x.status === filter);
+    el.innerHTML = filtered.length ? filtered.map(x=>`
+      <div class="item">
+        <div><b>${esc(x.user || '')}</b> <span class="threads-mini">${esc(x.status || '')}</span></div>
+        <div class="threads-mini">${esc(jpTime(x.createdAt))}</div>
+        <pre>${esc(x.comment || '')}</pre>
+        ${x.dmCandidate ? `<div class="threads-mini">DM候補</div><pre>${esc(x.dmCandidate)}</pre>` : ''}
+        <div class="threads-actions">
+          <button type="button" class="secondary" data-tx-action="mark-progress" data-id="${esc(x.id)}">対応中へ</button>
+          <button type="button" class="secondary" data-tx-action="mark-done" data-id="${esc(x.id)}">完了へ</button>
+          <button type="button" class="secondary" data-tx-action="copy-dm" data-id="${esc(x.id)}">DM候補コピー</button>
+          <button type="button" class="secondary danger" data-tx-action="delete-lead" data-id="${esc(x.id)}">削除</button>
+        </div>
+      </div>`).join('') : '<div class="muted">保存されたリードはありません。</div>';
+  }
+
+  function rerenderSummaryIfPossible(){
+    const posts = read(LS.posts, []);
+    const rules = read(LS.rules, []);
+    const leads = read(LS.leads, []);
+    const settings = read(LS.settings, {});
+    const logs = read(LS.logs, []);
+    const dm = read(LS.dm, { mode:'off', target:'instagram' });
+    const el = document.getElementById('threadsSummary');
+    if(!el) return;
+    const newCount = leads.filter(x => x.status === '新規').length;
+    const doneCount = leads.filter(x => x.status === '完了').length;
+    el.innerHTML = `
+      投稿設定: <b>${posts.length}</b>件<br>
+      条件返信ルール: <b>${rules.length}</b>件<br>
+      リード: <b>${leads.length}</b>件（新規 <b>${newCount}</b> / 完了 <b>${doneCount}</b>）<br>
+      DMモード: <b>${esc(dm.mode || 'off')}</b> / 送信先: <b>${esc(dm.target || 'instagram')}</b><br>
+      クールダウン: <b>${esc(settings.cooldown || 60)}</b>分<br>
+      深夜停止: <b>${esc(settings.nightStop || 'on')}</b><br>
+      ログ件数: <b>${logs.length}</b>件
+    `;
+  }
+
+  function runSimulation(mode = 'full'){
+    const user = document.getElementById('threadsSimUser')?.value?.trim() || '@demo_user';
+    const comment = document.getElementById('threadsSimComment')?.value?.trim() || '';
+    const post = document.getElementById('threadsSimPost')?.value?.trim() || '';
+    const resultEl = document.getElementById('threadsSimulationResult');
+    const previewEl = document.getElementById('threadsAutomationPreview');
+
+    if(!comment){
+      if(resultEl) resultEl.textContent = 'コメント本文を入れてください。';
+      return;
+    }
+
+    const rule = matchRule(comment);
+    const dmCandidate = buildDmCandidate(user, comment);
+    let preview = `ユーザー: ${user}\n投稿: ${post || '-'}\nコメント: ${comment}\n`;
+    let status = '新規';
+
+    if(rule){
+      preview += `\n一致ルール: ${rule.name || '無名ルール'}\n公開返信:\n${rule.reply || ''}\n`;
+      if(rule.action === 'reply_and_dm_candidate' || rule.action === 'full' || mode === 'dm_only'){
+        preview += `\nDM候補:\n${dmCandidate}\n`;
+        status = 'DM候補作成済み';
+      }
+      if(mode !== 'dm_only'){
+        saveLeadRecord({
+          user, comment, status, post,
+          matchedRule: rule.name || '',
+          publicReply: rule.reply || '',
+          dmCandidate: (rule.action === 'reply_and_dm_candidate' || rule.action === 'full') ? dmCandidate : ''
+        });
+      }
+      addLog('Threads', `コメント自動処理: ${user} / ${rule.name || '無名ルール'} に一致`, { user, comment, rule: rule.name || '' });
+      if(resultEl) resultEl.textContent = `一致しました: ${rule.name || '無名ルール'}`;
+    } else {
+      preview += `\n一致ルールなし\nDM候補:\n${dmCandidate}\n`;
+      if(mode === 'dm_only'){
+        addLog('Threads', `DM候補のみ作成: ${user}`, { user, comment });
+        if(resultEl) resultEl.textContent = 'ルール未一致。DM候補だけ作成しました。';
+      } else {
+        saveLeadRecord({ user, comment, status:'新規', post, matchedRule:'', publicReply:'', dmCandidate:'' });
+        addLog('Threads', `コメント保存のみ: ${user}`, { user, comment });
+        if(resultEl) resultEl.textContent = '一致ルールがないため、リード保存のみ行いました。';
+      }
+    }
+
+    write(LS.run, { user, comment, post, preview, dmCandidate, createdAt: nowIso(), matchedRule: rule ? (rule.name || '') : '' });
+    if(previewEl) previewEl.textContent = preview;
+    rerenderLeadListIfPossible();
+    rerenderSummaryIfPossible();
+    renderLogs();
+    renderDashboard();
+  }
+
+  function bind(){
+    document.getElementById('threadsLeadFilter')?.addEventListener('change', rerenderLeadListIfPossible);
+    document.getElementById('threadsRunSimulationBtn')?.addEventListener('click', ()=>runSimulation('full'));
+    document.getElementById('threadsGenerateDmOnlyBtn')?.addEventListener('click', ()=>runSimulation('dm_only'));
+
+    document.getElementById('threadsCopyAutomationReplyBtn')?.addEventListener('click', async ()=>{
+      const last = read(LS.run, null);
+      const ok = await copyText(last?.preview || '');
+      toast(ok ? '実行結果をコピーしました' : 'コピー失敗');
+    });
+    document.getElementById('threadsCopyAutomationDmBtn')?.addEventListener('click', async ()=>{
+      const last = read(LS.run, null);
+      if(!last?.dmCandidate){ toast('DM候補がありません'); return; }
+      const ok = await copyText(last.dmCandidate);
+      toast(ok ? 'DM候補をコピーしました' : 'コピー失敗');
+    });
+
+    document.addEventListener('click', async (e)=>{
+      const btn = e.target.closest('[data-tx-action]');
+      if(!btn) return;
+      const id = btn.dataset.id;
+      const action = btn.dataset.txAction;
+      const leads = read(LS.leads, []);
+      const item = leads.find(x => x.id === id);
+
+      if(action === 'copy-dm'){
+        if(!item?.dmCandidate){ toast('DM候補がありません'); return; }
+        const ok = await copyText(item.dmCandidate);
+        toast(ok ? 'DM候補をコピーしました' : 'コピー失敗');
+        return;
+      }
+
+      if(action === 'delete-lead'){
+        if(!confirm('このリードを削除しますか？')) return;
+        write(LS.leads, leads.filter(x => x.id !== id));
+        addLog('Threads', 'リードを削除しました');
+      }
+
+      if(action === 'mark-progress' || action === 'mark-done'){
+        const next = action === 'mark-progress' ? '対応中' : '完了';
+        write(LS.leads, leads.map(x => x.id === id ? { ...x, status: next } : x));
+        addLog('Threads', `リード状態を ${next} に変更しました`);
+      }
+
+      rerenderLeadListIfPossible();
+      rerenderSummaryIfPossible();
+      renderDashboard();
+    });
+
+    rerenderLeadListIfPossible();
+    rerenderSummaryIfPossible();
+    renderLogs();
+    renderDashboard();
   }
 
   if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bind);
