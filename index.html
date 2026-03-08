@@ -1306,6 +1306,90 @@ font-size:14px;
   }
 }
 
+
+/* ===== Desktop real 3-column fix ===== */
+@media (min-width: 1280px){
+  body.hc-desktop-mode #appContainer{
+    max-width: 1500px !important;
+    padding: 16px 20px 24px !important;
+    margin: 0 auto !important;
+  }
+  body.hc-desktop-mode .topbar{
+    display:block !important;
+  }
+  body.hc-desktop-mode .topbar > .lockbar{
+    margin-bottom: 12px;
+  }
+  body.hc-desktop-mode .app-shell,
+  body.hc-desktop-mode .app-shell.hc-desktop-ready{
+    display:grid !important;
+    grid-template-columns: 220px minmax(0, 1fr) 300px !important;
+    gap: 18px !important;
+    align-items:start !important;
+  }
+  body.hc-desktop-mode .app-sidebar{
+    display:block !important;
+    position: sticky !important;
+    top: 88px !important;
+    width: auto !important;
+    max-height: calc(100vh - 110px) !important;
+    overflow:auto !important;
+  }
+  body.hc-desktop-mode .app-content{
+    min-width:0 !important;
+    width:100% !important;
+  }
+  body.hc-desktop-mode #accountsDrawer{
+    position: sticky !important;
+    top: 88px !important;
+    right: auto !important;
+    left: auto !important;
+    bottom: auto !important;
+    width: 100% !important;
+    max-width: 300px !important;
+    height: auto !important;
+    max-height: calc(100vh - 110px) !important;
+    transform: none !important;
+    display: block !important;
+    overflow: hidden !important;
+    margin: 0 !important;
+    border-radius: 20px !important;
+    z-index: 5 !important;
+  }
+  body.hc-desktop-mode #accountsDrawer .drawerPanel{
+    height: 100% !important;
+    max-height: calc(100vh - 110px) !important;
+    display:flex !important;
+    flex-direction:column !important;
+    background: rgba(12,14,20,.94) !important;
+  }
+  body.hc-desktop-mode #accountsDrawer .drawerBody{
+    overflow:auto !important;
+    min-height:0 !important;
+  }
+  body.hc-desktop-mode #accountsDrawer .acct-grid{
+    grid-template-columns: 1fr !important;
+  }
+  body.hc-desktop-mode #accountsDrawer .drawerClose,
+  body.hc-desktop-mode #drawerCloseBtn,
+  body.hc-desktop-mode #topGearBtn,
+  body.hc-desktop-mode .mobile-nav-toggle,
+  body.hc-desktop-mode .mobile-nav-overlay,
+  body.hc-desktop-mode .mobile-nav-drawer,
+  body.hc-desktop-mode #mobileNavToggle,
+  body.hc-desktop-mode #mobileNavOverlay,
+  body.hc-desktop-mode #mobileNavDrawer,
+  body.hc-desktop-mode #drawerOverlay,
+  body.hc-desktop-mode .drawerOverlay,
+  body.hc-desktop-mode .hc-sheet-overlay{
+    display:none !important;
+  }
+  body.hc-desktop-mode .btns{
+    position: static !important;
+    top: auto !important;
+  }
+}
+
 </style>
 
 <script>
@@ -5158,6 +5242,41 @@ wrapper.appendChild(account);
   window.addEventListener('resize', desktopFix);
   if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', desktopFix);
   else desktopFix();
+})();
+</script>
+
+
+<script>
+(function(){
+  function applyDesktopLayout(){
+    var desktop = window.innerWidth >= 1280;
+    document.body.classList.toggle('hc-desktop-mode', desktop);
+    var shell = document.querySelector('.app-shell');
+    var drawer = document.getElementById('accountsDrawer');
+    var appContent = document.querySelector('.app-content');
+    var appSidebar = document.querySelector('.app-sidebar');
+    var mobileDrawer = document.getElementById('mobileNavDrawer');
+    var mobileOverlay = document.getElementById('mobileNavOverlay');
+    if(mobileDrawer){ mobileDrawer.classList.remove('show'); }
+    if(mobileOverlay){ mobileOverlay.classList.remove('show'); }
+    if(desktop && shell && drawer && appContent){
+      shell.classList.add('hc-desktop-ready');
+      if(drawer.parentElement !== shell){
+        shell.appendChild(drawer);
+      }
+      drawer.classList.add('show','open');
+      drawer.setAttribute('aria-hidden','false');
+      document.body.style.overflow = '';
+    } else if(shell) {
+      shell.classList.remove('hc-desktop-ready');
+    }
+    if(appSidebar){
+      appSidebar.style.display = desktop ? 'block' : '';
+    }
+  }
+  window.addEventListener('resize', applyDesktopLayout);
+  if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', applyDesktopLayout);
+  else applyDesktopLayout();
 })();
 </script>
 
