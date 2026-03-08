@@ -1390,6 +1390,91 @@ font-size:14px;
   }
 }
 
+
+/* ===== Desktop roomy layout v4 ===== */
+@media (min-width: 1280px){
+  body.hc-desktop-mode #appContainer{
+    width: min(96vw, 1820px) !important;
+    max-width: none !important;
+    padding: 16px 24px 32px !important;
+    margin: 0 auto !important;
+  }
+  body.hc-desktop-mode .app-shell,
+  body.hc-desktop-mode .app-shell.hc-desktop-ready{
+    grid-template-columns: minmax(210px, 240px) minmax(0, 1.55fr) minmax(290px, 340px) !important;
+    gap: 24px !important;
+  }
+  body.hc-desktop-mode .app-sidebar{
+    top: 86px !important;
+  }
+  body.hc-desktop-mode .app-content,
+  body.hc-desktop-mode .page-section,
+  body.hc-desktop-mode .page,
+  body.hc-desktop-mode #pageMain,
+  body.hc-desktop-mode #pageTelegram{
+    min-width: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+  body.hc-desktop-mode .card,
+  body.hc-desktop-mode .panel,
+  body.hc-desktop-mode .box{
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+  body.hc-desktop-mode .row,
+  body.hc-desktop-mode .formRow,
+  body.hc-desktop-mode .threads-grid-2,
+  body.hc-desktop-mode .kpi-row,
+  body.hc-desktop-mode .threads-stat-grid,
+  body.hc-desktop-mode .row3{
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+  body.hc-desktop-mode .row,
+  body.hc-desktop-mode .formRow,
+  body.hc-desktop-mode .threads-grid-2{
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 16px !important;
+  }
+  body.hc-desktop-mode .row3,
+  body.hc-desktop-mode .threads-stat-grid,
+  body.hc-desktop-mode .kpi-row{
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 16px !important;
+  }
+  body.hc-desktop-mode #sectionDashboard .row3{
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  }
+  body.hc-desktop-mode #accountsDrawer{
+    max-width: 340px !important;
+    width: 100% !important;
+    top: 86px !important;
+  }
+  body.hc-desktop-mode #accountsDrawer .drawerPanel{
+    max-height: calc(100vh - 104px) !important;
+  }
+  body.hc-desktop-mode #accountsDrawer .drawerBody{
+    padding: 12px !important;
+  }
+  body.hc-desktop-mode #accountsDrawer .drawerTabs{
+    gap: 8px !important;
+  }
+  body.hc-desktop-mode #accountsDrawer input,
+  body.hc-desktop-mode #accountsDrawer textarea,
+  body.hc-desktop-mode #accountsDrawer select{
+    font-size: 12px !important;
+    padding: 9px 10px !important;
+  }
+  body.hc-desktop-mode #accountsDrawer label{
+    font-size: 11px !important;
+    margin: 6px 0 4px !important;
+  }
+  body.hc-desktop-mode .btns{
+    gap: 10px !important;
+  }
+}
+
 </style>
 
 <script>
