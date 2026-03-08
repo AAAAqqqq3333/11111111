@@ -1143,19 +1143,6 @@ function removeUndefinedFields(obj){
 </head>
 
 <body>
-<div style="background:linear-gradient(135deg,#0b0f2a,#081020 40%,#140a2a);padding:14px 16px;border-radius:16px;margin-bottom:14px;color:white;">
-  <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
-    <div style="display:flex;align-items:center;gap:10px;">
-      <div style="width:32px;height:32px;border-radius:10px;background:linear-gradient(135deg,#0ff,#7a3cff);display:flex;align-items:center;justify-content:center;font-weight:900;">HC</div>
-      <div style="font-weight:700;font-size:18px;">SNS Hyper Core</div>
-    </div>
-    <div>⚙️</div>
-  </div>
-  <div style="margin-top:10px;font-size:13px;background:linear-gradient(90deg,#0ff3,#7a3cff33);padding:6px 10px;border-radius:999px;display:inline-block;">
-    ✅ 認証済み（期限: <span id="expire">--</span>）（残り<span id="days">--</span>日）
-  </div>
-</div>
-
 
 <header class="hc-header">
   <div class="hc-title"><img class="hc-logo" src="icon-180.png" alt="Hyper Core" />SNS Hyper Core</div>
@@ -1241,7 +1228,26 @@ function removeUndefinedFields(obj){
           <div class="row3">
             <div class="card"><div style="font-weight:800;">X</div><div class="muted" style="margin-top:6px;">投稿生成 / アカウント管理</div></div>
             <div class="card"><div style="font-weight:800;">Telegram</div><div class="muted" style="margin-top:6px;">Bot送信 / 予約投稿</div></div>
-            <div class="card"><div style="font-weight:800;">Threads</div><div class="muted" style="margin-top:6px;">条件返信 / リード管理を追加予定</div></div>
+            <div class="card"><div style="font-weight:800;">Threads</div><div class="muted" style="margin-top:6px;">条件返信 / リード管理 / 自動DM</div></div>
+          </div>
+        </div>
+
+        <div class="row" style="margin-top:12px;">
+          <div class="card">
+            <div style="font-weight:800; margin-bottom:10px;">Threads サマリー</div>
+            <div class="row3">
+              <div class="card"><div class="muted">条件返信</div><div style="font-size:22px; font-weight:900; margin-top:6px;">ON</div></div>
+              <div class="card"><div class="muted">新規リード</div><div style="font-size:22px; font-weight:900; margin-top:6px;">3</div></div>
+              <div class="card"><div class="muted">DM候補</div><div style="font-size:22px; font-weight:900; margin-top:6px;">2</div></div>
+            </div>
+          </div>
+          <div class="card">
+            <div style="font-weight:800; margin-bottom:10px;">アクティビティログ</div>
+            <div id="dashboardActivityLog" class="out" style="margin-top:0;">
+              <div class="item"><pre>19:45 Threads 条件返信を実行</pre></div>
+              <div class="item"><pre>19:44 X 投稿を3件生成</pre></div>
+              <div class="item"><pre>19:40 Telegram 予約送信を登録</pre></div>
+            </div>
           </div>
         </div>
       </section>
@@ -1430,29 +1436,106 @@ function removeUndefinedFields(obj){
           <div class="page-title">
             <div>
               <h2>Threads</h2>
-              <p class="muted">ここに Threads 用の投稿管理・条件返信・リード一覧を追加していく想定です。</p>
+              <p class="muted">投稿管理・条件返信・リード・自動DM候補・アクティビティログを1画面で管理します。</p>
             </div>
           </div>
-          <div class="service-tabs">
-            <button class="tabbtn active" type="button">投稿管理</button>
-            <button class="tabbtn" type="button">条件返信</button>
-            <button class="tabbtn" type="button">リード一覧</button>
-            <button class="tabbtn" type="button">設定</button>
+          <div class="service-tabs" id="threadsTabs">
+            <button class="tabbtn active" type="button" data-threads-tab="threadsPost">投稿管理</button>
+            <button class="tabbtn" type="button" data-threads-tab="threadsReply">条件返信</button>
+            <button class="tabbtn" type="button" data-threads-tab="threadsLead">リード一覧</button>
+            <button class="tabbtn" type="button" data-threads-tab="threadsDM">自動DM</button>
+            <button class="tabbtn" type="button" data-threads-tab="threadsLog">アクティビティ</button>
           </div>
-          <div class="row">
-            <div class="card">
-              <label>機能の方向性</label>
-              <textarea readonly>・条件コメント検知
-・公開返信テンプレ
-・AI下書き
-・見込み客保存
-・DM候補生成</textarea>
+
+          <div id="threadsPost" class="threads-tab-panel" style="display:block;">
+            <div class="row">
+              <div class="card">
+                <label>投稿タイトル</label>
+                <input id="threadsPostTitle" placeholder="例：Hyper Core 条件返信の案内" />
+                <label>投稿本文</label>
+                <textarea id="threadsPostBody" placeholder="Threadsに出したい投稿本文"></textarea>
+                <div class="btns">
+                  <button type="button">下書き保存</button>
+                  <button class="secondary" type="button">予約投稿</button>
+                </div>
+              </div>
+              <div class="card">
+                <label>運用メモ</label>
+                <textarea readonly>・コメント誘導型の投稿を作る
+・キーワード一致で条件返信
+・見込み客はリード一覧へ保存
+・DMは候補文を生成して手動確認</textarea>
+              </div>
             </div>
+          </div>
+
+          <div id="threadsReply" class="threads-tab-panel" style="display:none;">
+            <div class="row">
+              <div class="card">
+                <label>起動キーワード</label>
+                <textarea id="threadsKeywords">詳細
+料金
+興味ある
+欲しい
+リンク</textarea>
+                <label>公開返信テンプレ</label>
+                <textarea id="threadsReplyTemplate">ありがとうございます。詳細案内できます。必要ならそのまま返信してください。</textarea>
+                <div class="btns">
+                  <button type="button">条件返信を保存</button>
+                  <button class="secondary" type="button">テスト返信</button>
+                </div>
+              </div>
+              <div class="card">
+                <label>安全設定</label>
+                <textarea readonly>・NGワードがあれば保留
+・同一ユーザー連投制限
+・深夜停止
+・長文はAI下書き送り</textarea>
+              </div>
+            </div>
+          </div>
+
+          <div id="threadsLead" class="threads-tab-panel" style="display:none;">
+            <div class="card tableScroll">
+              <table class="acct-table">
+                <thead>
+                  <tr><th>ユーザー</th><th>コメント</th><th>状態</th><th>DM候補</th></tr>
+                </thead>
+                <tbody>
+                  <tr><td>@client_a</td><td>詳細知りたいです</td><td><span class="badge">新規</span></td><td>詳細案内できます。必要ならそのまま返信ください。</td></tr>
+                  <tr><td>@client_b</td><td>料金いくら？</td><td><span class="badge">確認待ち</span></td><td>価格と使い方をまとめて案内できます。</td></tr>
+                  <tr><td>@client_c</td><td>興味あります</td><td><span class="badge">返信済み</span></td><td>用途に合わせて案内できます。</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div id="threadsDM" class="threads-tab-panel" style="display:none;">
+            <div class="row">
+              <div class="card">
+                <label>DM候補テンプレ</label>
+                <textarea id="threadsDMTemplate">ありがとうございます。詳細や使い方を案内できます。気になる点があればそのまま教えてください。</textarea>
+                <div class="btns">
+                  <button type="button">候補文を保存</button>
+                  <button class="secondary" type="button">AI下書き生成</button>
+                </div>
+              </div>
+              <div class="card">
+                <label>運用ルール</label>
+                <textarea readonly>・Threads内DM自動送信は現状候補文ベース
+・公開返信 → リード保存 → DM候補生成の流れ
+・危険語がある場合は自動送信しない</textarea>
+              </div>
+            </div>
+          </div>
+
+          <div id="threadsLog" class="threads-tab-panel" style="display:none;">
             <div class="card">
-              <label>実装メモ</label>
-              <textarea readonly>Cloudflare Workers + D1 前提
-共通レイアウト内で Threads だけ中身を増やす
-既存のX/Telegramコードとは分離して管理</textarea>
+              <div id="threadsActivityLog" class="out" style="margin-top:0;">
+                <div class="item"><pre>19:45 条件返信: @client_a に公開返信</pre></div>
+                <div class="item"><pre>19:43 リード保存: @client_b / 料金いくら？</pre></div>
+                <div class="item"><pre>19:41 DM候補生成: @client_c</pre></div>
+              </div>
             </div>
           </div>
         </div>
@@ -3685,5 +3768,19 @@ function hcScrollToOutput(){
 })();
 </script>
 
+
+<script>
+(function(){
+  const tabs = document.querySelectorAll('[data-threads-tab]');
+  const panels = document.querySelectorAll('.threads-tab-panel');
+  tabs.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const target = btn.getAttribute('data-threads-tab');
+      tabs.forEach(x => x.classList.toggle('active', x === btn));
+      panels.forEach(p => p.style.display = (p.id === target ? 'block' : 'none'));
+    });
+  });
+})();
+</script>
 </body>
 </html>
