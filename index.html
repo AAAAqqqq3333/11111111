@@ -1058,6 +1058,36 @@ body { min-height:100vh; }
   flex-wrap:wrap;
 }
 
+
+
+/* === App shell navigation === */
+.app-shell{display:grid;grid-template-columns:260px minmax(0,1fr);gap:16px;align-items:start;}
+.app-sidebar{position:sticky;top:82px;border:1px solid rgba(255,255,255,.12);border-radius:20px;background:rgba(10,14,24,.58);backdrop-filter:blur(12px);padding:14px;box-shadow:0 14px 40px rgba(0,0,0,.30);}
+.app-nav-title{font-size:12px;letter-spacing:.12em;opacity:.7;margin:0 0 12px;font-weight:800;}
+.app-nav{display:grid;gap:8px;}
+.app-navbtn{width:100%;text-align:left;padding:12px 14px;border-radius:14px;border:1px solid rgba(255,255,255,.10);background:rgba(255,255,255,.06);color:var(--text0);font-weight:800;}
+.app-navbtn.active{background:linear-gradient(135deg, rgba(0,229,255,.22), rgba(180,0,255,.18));border-color:rgba(0,229,255,.28);box-shadow:0 0 24px rgba(0,229,255,.12);}
+.app-navmeta{margin-top:14px;padding-top:14px;border-top:1px solid rgba(255,255,255,.08);font-size:12px;color:var(--text1);line-height:1.6;}
+.app-content{min-width:0;}
+.mobile-nav-toggle{display:none;width:100%;margin-bottom:12px;padding:12px 14px;border-radius:16px;text-align:left;font-weight:900;}
+.mobile-nav-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.52);backdrop-filter:blur(8px);z-index:120;}
+.mobile-nav-overlay.show{display:block;}
+.mobile-nav-drawer{position:fixed;top:0;left:0;bottom:0;width:min(82vw,320px);padding:18px;transform:translateX(-105%);transition:transform .22s ease;background:rgba(10,14,24,.96);border-right:1px solid rgba(255,255,255,.10);z-index:121;box-shadow:16px 0 50px rgba(0,0,0,.42);}
+.mobile-nav-drawer.show{transform:translateX(0);}
+.mobile-nav-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
+.mobile-nav-close{width:40px;height:40px;border-radius:12px;}
+.page-title{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px;flex-wrap:wrap;}
+.page-title h2{margin:0;font-size:18px;}
+.page-title .muted{margin:0;}
+.page-section{display:none;}
+.page-section.active{display:block;}
+.service-tabs{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0 12px;}
+@media (max-width: 980px){
+  .app-shell{grid-template-columns:1fr;}
+  .app-sidebar{display:none;}
+  .mobile-nav-toggle{display:block;}
+}
+
 </style>
 
 <script>
@@ -1154,10 +1184,62 @@ function removeUndefinedFields(obj){
     </div>
 
   
-  <div class="tabs" id="tabs">
-    <button class="tabbtn active" type="button" data-page="pageMain">投稿生成</button>
-    <button class="tabbtn" type="button" data-page="pageTelegram">Telegram</button>
-  </div>
+  <button class="mobile-nav-toggle" id="mobileNavToggle" type="button">☰ メニューを開く</button>
+  <div class="mobile-nav-overlay" id="mobileNavOverlay"></div>
+  <aside class="mobile-nav-drawer" id="mobileNavDrawer" aria-hidden="true">
+    <div class="mobile-nav-head">
+      <div class="app-nav-title">HYPER CORE MENU</div>
+      <button class="mobile-nav-close" id="mobileNavClose" type="button" aria-label="閉じる">×</button>
+    </div>
+    <div class="app-nav" id="mobileAppNav">
+      <button class="app-navbtn active" type="button" data-section="sectionDashboard">ダッシュボード</button>
+      <button class="app-navbtn" type="button" data-section="sectionX">X</button>
+      <button class="app-navbtn" type="button" data-section="sectionTelegram">Telegram</button>
+      <button class="app-navbtn" type="button" data-section="sectionThreads">Threads</button>
+      <button class="app-navbtn" type="button" data-section="sectionSettings">共通設定</button>
+    </div>
+  </aside>
+
+  <div class="app-shell">
+    <aside class="app-sidebar">
+      <div class="app-nav-title">HYPER CORE MENU</div>
+      <div class="app-nav" id="desktopAppNav">
+        <button class="app-navbtn active" type="button" data-section="sectionDashboard">ダッシュボード</button>
+        <button class="app-navbtn" type="button" data-section="sectionX">X</button>
+        <button class="app-navbtn" type="button" data-section="sectionTelegram">Telegram</button>
+        <button class="app-navbtn" type="button" data-section="sectionThreads">Threads</button>
+        <button class="app-navbtn" type="button" data-section="sectionSettings">共通設定</button>
+      </div>
+      <div class="app-navmeta">
+        共通レイアウトのまま、サービスごとの中身だけ切り替える構成です。<br>
+        今後 Instagram / Discord / LINE を増やす時も同じ作りで拡張できます。
+      </div>
+    </aside>
+
+    <main class="app-content">
+      <section class="page-section active" id="sectionDashboard">
+        <div class="card">
+          <div class="page-title">
+            <div>
+              <h2>ダッシュボード</h2>
+              <p class="muted">X・Telegram・Threads を1つの管理画面で切り替えるホームです。</p>
+            </div>
+          </div>
+          <div class="row3">
+            <div class="card"><div style="font-weight:800;">X</div><div class="muted" style="margin-top:6px;">投稿生成 / アカウント管理</div></div>
+            <div class="card"><div style="font-weight:800;">Telegram</div><div class="muted" style="margin-top:6px;">Bot送信 / 予約投稿</div></div>
+            <div class="card"><div style="font-weight:800;">Threads</div><div class="muted" style="margin-top:6px;">条件返信 / リード管理を追加予定</div></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="page-section" id="sectionX">
+        <div class="page-title">
+          <div>
+            <h2>X</h2>
+            <p class="muted">既存の投稿生成機能はそのまま残し、X専用ページとして分離しています。</p>
+          </div>
+        </div>
 
   <div class="page active" id="pageMain">
 
@@ -1246,7 +1328,17 @@ function removeUndefinedFields(obj){
   <!-- pageAccounts moved into drawer -->
 
 
-  <div class="page" id="pageTelegram">
+      </section>
+
+      <section class="page-section" id="sectionTelegram">
+        <div class="page-title">
+          <div>
+            <h2>Telegram</h2>
+            <p class="muted">Telegram Bot送信と予約投稿をここに集約します。</p>
+          </div>
+        </div>
+
+  <div class="page" id="pageTelegram" style="display:block;"> 
     <div class="card">
       <h2 style="margin:0 0 8px; font-size:16px;">Telegramボット</h2>
       <div class="muted">※ブラウザからBot APIへ直接送信します（Bot TokenがこのPCのlocalStorageに保存されます）。</div>
@@ -1318,6 +1410,62 @@ function removeUndefinedFields(obj){
 
 
 
+      </section>
+
+      <section class="page-section" id="sectionThreads">
+        <div class="card">
+          <div class="page-title">
+            <div>
+              <h2>Threads</h2>
+              <p class="muted">ここに Threads 用の投稿管理・条件返信・リード一覧を追加していく想定です。</p>
+            </div>
+          </div>
+          <div class="service-tabs">
+            <button class="tabbtn active" type="button">投稿管理</button>
+            <button class="tabbtn" type="button">条件返信</button>
+            <button class="tabbtn" type="button">リード一覧</button>
+            <button class="tabbtn" type="button">設定</button>
+          </div>
+          <div class="row">
+            <div class="card">
+              <label>機能の方向性</label>
+              <textarea readonly>・条件コメント検知
+・公開返信テンプレ
+・AI下書き
+・見込み客保存
+・DM候補生成</textarea>
+            </div>
+            <div class="card">
+              <label>実装メモ</label>
+              <textarea readonly>Cloudflare Workers + D1 前提
+共通レイアウト内で Threads だけ中身を増やす
+既存のX/Telegramコードとは分離して管理</textarea>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="page-section" id="sectionSettings">
+        <div class="card">
+          <div class="page-title">
+            <div>
+              <h2>共通設定</h2>
+              <p class="muted">サービス横断で使う設定の置き場です。ライセンスや法務リンクをまとめます。</p>
+            </div>
+          </div>
+          <div class="row">
+            <div class="card">
+              <div style="font-weight:800; margin-bottom:8px;">共通で持つもの</div>
+              <div class="muted">ライセンス情報 / APIキー / 通知設定 / 共通プロフィール / 利用規約リンク</div>
+            </div>
+            <div class="card">
+              <div style="font-weight:800; margin-bottom:8px;">運用イメージ</div>
+              <div class="muted">左メニューまたはハンバーガーで移動し、各サービスの中身だけ差し替えます。</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
   <div class="stickybar" id="stickybar">
     <div class="inner">
       <button class="secondary" id="stickyShuffleBtn" type="button">シャッフル</button>
@@ -1326,6 +1474,9 @@ function removeUndefinedFields(obj){
     </div>
   </div>
 
+
+    </main>
+  </div>
 
   </div>
 
@@ -1968,14 +2119,11 @@ $("activateBtn").addEventListener("click", async () => {
     e.target.value = "";
   });
 
-  // ---- Tabs (pseudo-pages)
-  const tabs = document.getElementById("tabs");
+  // ---- Service navigation (shared layout + page swap)
   function setPage(pageId) {
     document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
     const page = document.getElementById(pageId);
     if (page) page.classList.add("active");
-
-    document.querySelectorAll(".tabbtn").forEach(b => b.classList.toggle("active", b.dataset.page === pageId));
 
     const sticky = document.getElementById("stickybar");
     const isMain = pageId === "pageMain";
@@ -1983,13 +2131,48 @@ $("activateBtn").addEventListener("click", async () => {
     document.body.classList.toggle("hasSticky", isMain);
   }
 
-  if (tabs) {
-    tabs.addEventListener("click", (e) => {
-      const b = e.target.closest(".tabbtn");
-      if (!b) return;
-      setPage(b.dataset.page);
+  function setSection(sectionId){
+    document.querySelectorAll('.page-section').forEach(el => el.classList.remove('active'));
+    const target = document.getElementById(sectionId);
+    if (target) target.classList.add('active');
+
+    document.querySelectorAll('.app-navbtn').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.section === sectionId);
     });
+
+    if (sectionId === 'sectionX') setPage('pageMain');
+    else if (sectionId === 'sectionTelegram') setPage('pageTelegram');
+    else {
+      document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
+      const sticky = document.getElementById("stickybar");
+      if (sticky) sticky.style.display = 'none';
+      document.body.classList.remove('hasSticky');
+    }
   }
+
+  const navButtons = document.querySelectorAll('.app-navbtn');
+  navButtons.forEach(btn => btn.addEventListener('click', () => {
+    setSection(btn.dataset.section);
+    closeMobileNav();
+  }));
+
+  const mobileNavToggle = document.getElementById('mobileNavToggle');
+  const mobileNavOverlay = document.getElementById('mobileNavOverlay');
+  const mobileNavDrawer = document.getElementById('mobileNavDrawer');
+  const mobileNavClose = document.getElementById('mobileNavClose');
+  function openMobileNav(){
+    mobileNavOverlay?.classList.add('show');
+    mobileNavDrawer?.classList.add('show');
+    document.body.style.overflow = 'hidden';
+  }
+  function closeMobileNav(){
+    mobileNavOverlay?.classList.remove('show');
+    mobileNavDrawer?.classList.remove('show');
+    document.body.style.overflow = '';
+  }
+  mobileNavToggle?.addEventListener('click', openMobileNav);
+  mobileNavClose?.addEventListener('click', closeMobileNav);
+  mobileNavOverlay?.addEventListener('click', closeMobileNav);
 
   // ---- Sticky bar wire-up (mirrors main buttons)
   const stickyShuffleBtn = document.getElementById("stickyShuffleBtn");
