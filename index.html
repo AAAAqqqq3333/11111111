@@ -1116,87 +1116,69 @@ body { min-height:100vh; }
 
 
 /* ===== PC最適化レイアウト ===== */
-@media (min-width: 1200px){
-  body{
-    max-width: 1500px;
-    margin: 0 auto;
-  }
+@media (min-width:1200px){
 
-  .main-layout,
-  .layout-main,
-  .app-shell,
-  .desktop-layout{
-    display:flex;
-    gap:20px;
-    align-items:flex-start;
-  }
-
-  .sidebar,
-  .side-menu,
-  .left-panel{
-    width:220px;
-    flex:0 0 220px;
-  }
-
-  .dashboard,
-  .main-content,
-  .center-panel,
-  .content-area{
-    flex:1 1 auto;
-    min-width:0;
-    max-width:none;
-  }
-
-  .account-panel,
-  .settings-panel,
-  .right-panel{
-    width:340px;
-    flex:0 0 340px;
-  }
-
-  .card,
-  .glass-card,
-  .panel,
-  .section-card{
-    width:100%;
-  }
-
-  .dashboard-grid,
-  .threads-stat-grid,
-  .grid-2,
-  .row.grid{
-    grid-template-columns:repeat(2,minmax(0,1fr));
-  }
-
-  .hero,
-  .header-wrap,
-  .topbar,
-  header{
-    max-width:none;
-  }
-
-  input, textarea, select, button{
-    font-size:14px;
-  }
+body{
+max-width:1500px;
+margin:0 auto;
 }
 
-/* メニュー/中央/右パネルの見た目整理 */
-@media (min-width: 1200px){
-  .desktop-three-col{
-    display:grid;
-    grid-template-columns:220px minmax(0,1fr) 340px;
-    gap:20px;
-    align-items:start;
-  }
+/* 全体3カラム */
+.pc-layout{
+display:grid;
+grid-template-columns:220px 1fr 360px;
+gap:20px;
+align-items:start;
+}
 
-  .desktop-three-col .desktop-left{min-width:0;}
-  .desktop-three-col .desktop-center{min-width:0;}
-  .desktop-three-col .desktop-right{min-width:0;}
+/* 左メニュー */
+.sidebar,
+.left-menu,
+.side-menu{
+width:220px;
+flex:0 0 220px;
+}
 
-  .desktop-sticky{
-    position:sticky;
-    top:18px;
-  }
+/* 中央 */
+.dashboard,
+.main-content,
+.center-panel{
+width:100%;
+max-width:none;
+}
+
+/* 右設定 */
+.account-panel,
+.settings-panel,
+.right-panel{
+position:relative !important;
+right:auto !important;
+top:auto !important;
+width:360px;
+height:auto;
+}
+
+/* オーバーレイ消す */
+.overlay,
+.modal-backdrop{
+display:none !important;
+}
+
+}
+
+/* 少し見た目調整 */
+@media (min-width:1200px){
+
+.card,
+.panel,
+.glass-card{
+width:100%;
+}
+
+input,textarea,button{
+font-size:14px;
+}
+
 }
 
 </style>
@@ -1311,7 +1293,7 @@ function removeUndefinedFields(obj){
     </div>
   </aside>
 
-  <div class="app-shell desktop-three-col">
+  <div class="app-shell">
     <aside class="app-sidebar">
       <div class="app-nav-title">HYPER CORE MENU</div>
       <div class="app-nav" id="desktopAppNav">
@@ -1328,7 +1310,7 @@ function removeUndefinedFields(obj){
     </aside>
 
     <main class="app-content">
-      <section class="page-section active" id="sectionDashboard" class="page-section active dashboard desktop-center">
+      <section class="page-section active" id="sectionDashboard">
         <div class="card">
           <div class="page-title">
             <div>
@@ -4996,47 +4978,40 @@ function hcScrollToOutput(){
 
 
 <script>
-document.addEventListener('DOMContentLoaded', () => {
-  const pageRoot =
-    document.querySelector('.main-layout') ||
-    document.querySelector('.layout-main') ||
-    document.querySelector('.app-shell') ||
-    document.querySelector('#app') ||
-    document.body;
+document.addEventListener("DOMContentLoaded",()=>{
 
-  const sidebar =
-    document.querySelector('#sidebar') ||
-    document.querySelector('.sidebar') ||
-    document.querySelector('.side-menu') ||
-    document.querySelector('.left-panel');
+if(window.innerWidth < 1200) return;
 
-  const dashboard =
-    document.querySelector('#sectionDashboard') ||
-    document.querySelector('.dashboard') ||
-    document.querySelector('.main-content') ||
-    document.querySelector('.center-panel');
+const sidebar =
+document.querySelector(".sidebar") ||
+document.querySelector(".side-menu") ||
+document.querySelector(".left-menu");
 
-  const account =
-    document.querySelector('#accountPanel') ||
-    document.querySelector('.account-panel') ||
-    document.querySelector('.settings-panel') ||
-    document.querySelector('.right-panel');
+const dashboard =
+document.querySelector(".dashboard") ||
+document.querySelector(".main-content") ||
+document.querySelector(".center-panel");
 
-  if (window.innerWidth >= 1200 && sidebar && dashboard && account) {
-    const shell = document.createElement('div');
-    shell.className = 'desktop-three-col';
-    sidebar.classList.add('desktop-left', 'desktop-sticky');
-    dashboard.classList.add('desktop-center');
-    account.classList.add('desktop-right', 'desktop-sticky');
+const account =
+document.querySelector(".account-panel") ||
+document.querySelector(".settings-panel") ||
+document.querySelector(".right-panel");
 
-    const parent = dashboard.parentElement;
-    if (parent && !parent.classList.contains('desktop-three-col')) {
-      parent.insertBefore(shell, dashboard);
-      shell.appendChild(sidebar);
-      shell.appendChild(dashboard);
-      shell.appendChild(account);
-    }
-  }
+if(sidebar && dashboard && account){
+
+const wrapper=document.createElement("div");
+wrapper.className="pc-layout";
+
+const parent=dashboard.parentElement;
+
+parent.insertBefore(wrapper,dashboard);
+
+wrapper.appendChild(sidebar);
+wrapper.appendChild(dashboard);
+wrapper.appendChild(account);
+
+}
+
 });
 </script>
 
