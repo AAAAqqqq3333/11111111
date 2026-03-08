@@ -6024,5 +6024,189 @@ body.hc-desktop-mode #sectionSettings > .card{
   setTimeout(bindMobileMenu, 150);
 })();
 </script>
+
+
+<style id="hc-v9-x-tabs-style">
+/* ===== v9: X section tabs ===== */
+#sectionX #hcXLayoutWrap{
+  display:block !important;
+  max-width:1280px;
+  margin:0 auto;
+}
+#sectionX #hcXMainCol,
+#sectionX #hcXSideCol{
+  width:100%;
+}
+#sectionX #hcXSideCol{display:none !important;}
+#sectionX .hc-x-tabs-wrap{
+  max-width:1280px;
+  margin:0 auto;
+  display:grid;
+  gap:16px;
+}
+#sectionX .hc-x-tabbar{
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+  align-items:center;
+}
+#sectionX .hc-x-tabbtn{
+  padding:11px 16px;
+  border-radius:999px;
+  border:1px solid rgba(255,255,255,.14);
+  background:rgba(255,255,255,.08);
+  color:rgba(255,255,255,.92);
+  font-weight:800;
+  letter-spacing:.02em;
+}
+#sectionX .hc-x-tabbtn.active{
+  background:linear-gradient(135deg, rgba(0,229,255,.20), rgba(180,0,255,.18));
+  border-color:rgba(0,229,255,.28);
+  box-shadow:0 0 24px rgba(0,229,255,.12);
+}
+#sectionX .hc-x-panel{display:none; min-width:0;}
+#sectionX .hc-x-panel.active{display:block;}
+#sectionX .hc-x-panel > *:first-child{margin-top:0 !important;}
+#sectionX .hc-x-grid{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) 360px;
+  gap:16px;
+  align-items:start;
+}
+#sectionX .hc-x-grid .hc-x-mainstack{min-width:0; display:grid; gap:16px;}
+#sectionX .hc-x-grid .hc-x-side{min-width:0;}
+#sectionX #accountsDrawer,
+#sectionX #accountsDrawer .drawerPanel{
+  width:100% !important;
+  max-width:none !important;
+}
+#sectionX #accountsDrawer .drawerTabs{display:none !important;}
+#sectionX #drawerTab_lic{display:none !important;}
+#sectionX .hc-x-license-card .panelActions{margin-top:12px;}
+#sectionX .hc-x-license-card .btn{padding:12px 14px; border-radius:14px;}
+@media (max-width: 1100px){
+  #sectionX .hc-x-grid{grid-template-columns:1fr;}
+}
+@media (max-width: 720px){
+  #sectionX .hc-x-tabbar{
+    flex-wrap:nowrap;
+    overflow-x:auto;
+    padding-bottom:2px;
+    -webkit-overflow-scrolling:touch;
+  }
+  #sectionX .hc-x-tabbtn{flex:0 0 auto; white-space:nowrap;}
+}
+</style>
+
+<script id="hc-v9-x-tabs-script">
+(function(){
+  function buildXTabs(){
+    var sectionX = document.getElementById('sectionX');
+    var pageMain = document.getElementById('pageMain');
+    var drawer = document.getElementById('accountsDrawer');
+    if(!sectionX || !pageMain || !drawer) return;
+
+    var wrap = document.getElementById('hcXLayoutWrap') || sectionX;
+    var title = sectionX.querySelector('.page-title');
+    if(!title) return;
+
+    var autoInput = document.getElementById('xAutoPostTitle');
+    var autoCard = autoInput ? autoInput.closest('.card') : null;
+    var existing = document.getElementById('hcXTabSystem');
+    if(!existing){
+      existing = document.createElement('div');
+      existing.id = 'hcXTabSystem';
+      existing.className = 'hc-x-tabs-wrap';
+      existing.innerHTML = [
+        '<div class="hc-x-tabbar" role="tablist" aria-label="Xタブ">',
+        '  <button class="hc-x-tabbtn active" type="button" data-xtab="compose">投稿作成</button>',
+        '  <button class="hc-x-tabbtn" type="button" data-xtab="autopost">自動ポスト</button>',
+        '  <button class="hc-x-tabbtn" type="button" data-xtab="account">アカウント</button>',
+        '  <button class="hc-x-tabbtn" type="button" data-xtab="license">ライセンス</button>',
+        '</div>',
+        '<div class="hc-x-panel active" id="hcXTab_compose"></div>',
+        '<div class="hc-x-panel" id="hcXTab_autopost"></div>',
+        '<div class="hc-x-panel" id="hcXTab_account"></div>',
+        '<div class="hc-x-panel" id="hcXTab_license"></div>'
+      ].join('');
+      if(title.nextSibling) wrap.insertBefore(existing, title.nextSibling); else wrap.appendChild(existing);
+    }
+
+    var compose = document.getElementById('hcXTab_compose');
+    var autopost = document.getElementById('hcXTab_autopost');
+    var account = document.getElementById('hcXTab_account');
+    var license = document.getElementById('hcXTab_license');
+
+    if(pageMain.parentElement !== compose){ compose.appendChild(pageMain); }
+    if(autoCard && autoCard.parentElement !== autopost){ autopost.appendChild(autoCard); }
+
+    if(!document.getElementById('hcXAccountGrid')){
+      var grid = document.createElement('div');
+      grid.id = 'hcXAccountGrid';
+      grid.className = 'hc-x-grid';
+      var main = document.createElement('div');
+      main.className = 'hc-x-mainstack';
+      var side = document.createElement('div');
+      side.className = 'hc-x-side';
+      account.appendChild(grid);
+      grid.appendChild(main);
+      grid.appendChild(side);
+    }
+    var grid = document.getElementById('hcXAccountGrid');
+    var main = grid.querySelector('.hc-x-mainstack');
+    var side = grid.querySelector('.hc-x-side');
+    if(pageMain.parentElement !== main){ main.appendChild(pageMain); }
+    if(drawer.parentElement !== side){ side.appendChild(drawer); }
+    drawer.style.display='block';
+    drawer.setAttribute('aria-hidden','false');
+    drawer.classList.remove('show','open');
+
+    if(!document.getElementById('hcXLicenseCard')){
+      var card = document.createElement('div');
+      card.id = 'hcXLicenseCard';
+      card.className = 'card hc-x-license-card';
+      card.innerHTML = '<div style="font-weight:800; margin-bottom:8px;">ライセンス</div>'+
+        '<div class="muted">情報確認や再認証をここから行えます。</div>'+
+        '<div class="panelActions">'+
+        '  <button type="button" class="btn primary" id="hcXOpenInfoBtn">情報を開く</button>'+
+        '  <button type="button" class="btn secondary" id="hcXReauthBtn">ライセンス再認証</button>'+
+        '</div>';
+      license.appendChild(card);
+    }
+
+    existing.querySelectorAll('.hc-x-tabbtn').forEach(function(btn){
+      if(btn.dataset.bound) return;
+      btn.dataset.bound='1';
+      btn.addEventListener('click', function(){
+        var name = btn.getAttribute('data-xtab');
+        existing.querySelectorAll('.hc-x-tabbtn').forEach(function(b){ b.classList.toggle('active', b===btn); });
+        existing.querySelectorAll('.hc-x-panel').forEach(function(p){ p.classList.toggle('active', p.id === 'hcXTab_' + name); });
+      });
+    });
+
+    var infoBtn = document.getElementById('hcXOpenInfoBtn');
+    if(infoBtn && !infoBtn.dataset.bound){
+      infoBtn.dataset.bound='1';
+      infoBtn.addEventListener('click', function(){
+        var src = document.getElementById('openInfoFromDrawer');
+        if(src) src.click();
+      });
+    }
+    var reauthBtn = document.getElementById('hcXReauthBtn');
+    if(reauthBtn && !reauthBtn.dataset.bound){
+      reauthBtn.dataset.bound='1';
+      reauthBtn.addEventListener('click', function(){
+        var src = document.getElementById('reauthFromDrawer');
+        if(src) src.click();
+      });
+    }
+  }
+
+  if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', buildXTabs);
+  else buildXTabs();
+  setTimeout(buildXTabs, 120);
+})();
+</script>
+
 </body>
 </html>
