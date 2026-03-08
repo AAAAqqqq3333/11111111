@@ -4718,5 +4718,196 @@ function hcScrollToOutput(){
 })();
 </script>
 
+
+<script>
+(() => {
+  const HC_API_KEY = 'threads_backend_v1';
+
+  function hcReadBackend(){
+    try{
+      return JSON.parse(localStorage.getItem(HC_API_KEY) || '{}');
+    }catch(e){ return {}; }
+  }
+
+  async function hcFetch(path, options = {}){
+    const backend = hcReadBackend();
+    if(!backend.workerUrl) throw new Error('Worker URL が未設定です');
+    const url = backend.workerUrl.replace(/\/+$/,'') + path;
+    const headers = Object.assign({'Content-Type':'application/json'}, options.headers || {});
+    if(backend.webhookSecret) headers['x-hc-secret'] = backend.webhookSecret;
+    const res = await fetch(url, Object.assign({}, options, { headers }));
+    const data = await res.json().catch(() => ({}));
+    if(!res.ok || data.ok === false){
+      throw new Error(data.message || ('HTTP ' + res.status));
+    }
+    return data;
+  }
+
+  function hcToast(msg){
+    let t = document.getElementById('hcBridgeToast');
+    if(!t){
+      t = document.createElement('div');
+      t.id = 'hcBridgeToast';
+      t.style.cssText = 'position:fixed;left:50%;bottom:130px;transform:translateX(-50%);padding:10px 14px;border-radius:999px;border:1px solid rgba(255,255,255,.18);background:rgba(12,14,20,.92);color:#fff;font-weight:900;font-size:13px;z-index:30004;opacity:0;transition:opacity .15s ease;';
+      document.body.appendChild(t);
+    }
+    t.textContent = msg;
+    t.style.opacity = '1';
+    clearTimeout(t._tm);
+    t._tm = setTimeout(()=>t.style.opacity='0', 1600);
+  }
+
+  async function testBackendHealth(){
+    const statusEl = document.getElementById('threadsBackendStatus');
+    try{
+      const data = await hcFetch('/api/health', { method:'GET', headers:{} });
+      if(statusEl) statusEl.textContent = `接続OK: ${data.service || 'worker'} / ${data.time || ''}`;
+      hcToast('Worker 接続OK');
+    }catch(e){
+      if(statusEl) statusEl.textContent = '接続失敗: ' + e.message;
+      hcToast('Worker 接続失敗');
+    }
+  }
+
+  async function webhookToWorker(){
+    const area = document.getElementById('threadsWebhookPayload');
+    const result = document.getElementById('threadsWebhookResult');
+    try{
+      const payload = JSON.parse(area?.value || '{}');
+      const data = await hcFetch('/api/threads/webhook', {
+        method:'POST',
+        body: JSON.stringify(payload)
+      });
+      if(result) result.textContent = JSON.stringify(data, null, 2);
+      hcToast('Webhook を Worker へ送信しました');
+    }catch(e){
+      if(result) result.textContent = '送信失敗: ' + e.message;
+      hcToast('Webhook 送信失敗');
+    }
+  }
+
+  async function syncRulesToWorker(){
+    try{
+      const rules = JSON.parse(localStorage.getItem('threads_rules_v1') || '[]');
+      const data = await hcFetch('/api/threads/rules/bulk', {
+        method:'POST',
+        body: JSON.stringify({ rules })
+      });
+      hcToast(`ルール同期完了: ${data.count || rules.length}件`);
+    }catch(e){
+      hcToast('ルール同期失敗');
+    }
+  }
+
+  async function fetchLeadsFromWorker(){
+    try{
+      const data = await hcFetch('/api/threads/leads', { method:'GET', headers:{} });
+      if(Array.isArray(data.items)){
+        localStorage.setItem('threads_leads_v1', JSON.stringify(data.items));
+        window.dispatchEvent(new CustomEvent('threads-log-updated'));
+        hcToast(`リード取得: ${data.items.length}件`);
+      }
+    }catch(e){
+      hcToast('リード取得失敗');
+    }
+  }
+
+  async function runPendingJobsOnWorker(){
+    try{
+      const data = await hcFetch('/api/threads/jobs/run', { method:'POST', body: JSON.stringify({}) });
+      hcToast(`ジョブ実行: ${data.processed || 0}件`);
+    }catch(e){
+      hcToast('ジョブ実行失敗');
+    }
+  }
+
+  async function exportLeadsFromWorker(fmt){
+    try{
+      const data = await hcFetch('/api/threads/export?format=' + encodeURIComponent(fmt), { method:'GET', headers:{} });
+      const blob = new Blob([fmt === 'json' ? JSON.stringify(data.items || [], null, 2) : (data.csv || '')], {
+        type: fmt === 'json' ? 'application/json' : 'text/csv'
+      });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = fmt === 'json' ? 'threads_leads_worker.json' : 'threads_leads_worker.csv';
+      a.click();
+      URL.revokeObjectURL(a.href);
+      hcToast('Worker から出力しました');
+    }catch(e){
+      hcToast('Worker 出力失敗');
+    }
+  }
+
+  function mountBridgeButtons(){
+    const backendBox = document.getElementById('threadsBackendStatus');
+    if(backendBox && !document.getElementById('hcBackendBridgeBtns')){
+      const wrap = document.createElement('div');
+      wrap.id = 'hcBackendBridgeBtns';
+      wrap.className = 'btns';
+      wrap.style.marginTop = '10px';
+      wrap.innerHTML = `
+        <button type="button" class="secondary" id="hcBackendHealthBtn">接続確認</button>
+        <button type="button" class="secondary" id="hcSyncRulesBtn">ルール同期</button>
+        <button type="button" class="secondary" id="hcFetchLeadsBtn">リード取得</button>
+      `;
+      backendBox.insertAdjacentElement('afterend', wrap);
+      document.getElementById('hcBackendHealthBtn')?.addEventListener('click', testBackendHealth);
+      document.getElementById('hcSyncRulesBtn')?.addEventListener('click', syncRulesToWorker);
+      document.getElementById('hcFetchLeadsBtn')?.addEventListener('click', fetchLeadsFromWorker);
+    }
+
+    const queue = document.getElementById('threadsJobQueue');
+    if(queue && !document.getElementById('hcRunJobsWorkerBtn')){
+      const btnRow = document.createElement('div');
+      btnRow.className = 'btns';
+      btnRow.style.marginTop = '10px';
+      btnRow.innerHTML = `
+        <button type="button" class="secondary" id="hcRunJobsWorkerBtn">Workerでジョブ実行</button>
+      `;
+      queue.parentElement.appendChild(btnRow);
+      document.getElementById('hcRunJobsWorkerBtn')?.addEventListener('click', runPendingJobsOnWorker);
+    }
+
+    const exportLog = document.getElementById('threadsExportLog');
+    if(exportLog && !document.getElementById('hcWorkerExportBtns')){
+      const btnRow = document.createElement('div');
+      btnRow.id = 'hcWorkerExportBtns';
+      btnRow.className = 'btns';
+      btnRow.style.marginTop = '10px';
+      btnRow.innerHTML = `
+        <button type="button" class="secondary" id="hcWorkerCsvBtn">Worker CSV出力</button>
+        <button type="button" class="secondary" id="hcWorkerJsonBtn">Worker JSON出力</button>
+      `;
+      exportLog.parentElement.appendChild(btnRow);
+      document.getElementById('hcWorkerCsvBtn')?.addEventListener('click', ()=>exportLeadsFromWorker('csv'));
+      document.getElementById('hcWorkerJsonBtn')?.addEventListener('click', ()=>exportLeadsFromWorker('json'));
+    }
+
+    const webhookBtn = document.getElementById('threadsWebhookTestBtn');
+    if(webhookBtn && !webhookBtn.dataset.bridgeBound){
+      webhookBtn.dataset.bridgeBound = '1';
+      webhookBtn.addEventListener('dblclick', (e) => {
+        e.preventDefault();
+        webhookToWorker();
+      });
+      const hint = document.getElementById('threadsWebhookResult');
+      if(hint && !document.getElementById('hcWebhookHint')){
+        const p = document.createElement('div');
+        p.id = 'hcWebhookHint';
+        p.className = 'feature-note';
+        p.textContent = '※ 受信テストボタンをダブルタップすると Worker にも送信します。';
+        hint.insertAdjacentElement('beforebegin', p);
+      }
+    }
+  }
+
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', mountBridgeButtons);
+  } else {
+    mountBridgeButtons();
+  }
+})();
+</script>
+
 </body>
 </html>
