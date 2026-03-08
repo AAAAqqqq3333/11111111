@@ -1653,6 +1653,24 @@ body.hc-embed-x #topGearBtn{
 }
 </style>
 
+
+
+<style id="hc-v7-mobile-menu-fix">
+/* v7: mobile menu button must stay visible even when account panel is embedded in X tab */
+@media (max-width: 1099px){
+  body.hc-embed-x .mobile-nav-toggle,
+  body.hc-embed-x #mobileNavToggle{
+    display:block !important;
+  }
+  body.hc-embed-x .mobile-nav-overlay,
+  body.hc-embed-x #mobileNavOverlay,
+  body.hc-embed-x .mobile-nav-drawer,
+  body.hc-embed-x #mobileNavDrawer{
+    display:none;
+  }
+}
+</style>
+
 </head>
 
 <body>
