@@ -1217,7 +1217,8 @@ function removeUndefinedFields(obj){
     </aside>
 
     <main class="app-content">
-      <section class="page-section active" id="sectionDashboard">
+      
+<section class="page-section active" id="sectionDashboard">
         <div class="card">
           <div class="page-title">
             <div>
@@ -1226,31 +1227,31 @@ function removeUndefinedFields(obj){
             </div>
           </div>
           <div class="row3">
-            <div class="card"><div style="font-weight:800;">X</div><div class="muted" style="margin-top:6px;">投稿生成 / アカウント管理</div></div>
-            <div class="card"><div style="font-weight:800;">Telegram</div><div class="muted" style="margin-top:6px;">Bot送信 / 予約投稿</div></div>
-            <div class="card"><div style="font-weight:800;">Threads</div><div class="muted" style="margin-top:6px;">条件返信 / リード管理 / 自動DM</div></div>
+            <div class="card" style="cursor:pointer;" onclick="window.hcGoSection && window.hcGoSection('sectionX')"><div style="font-weight:800;">X</div><div class="muted" style="margin-top:6px;">投稿生成 / アカウント管理</div></div>
+            <div class="card" style="cursor:pointer;" onclick="window.hcGoSection && window.hcGoSection('sectionTelegram')"><div style="font-weight:800;">Telegram</div><div class="muted" style="margin-top:6px;">Bot送信 / 予約投稿</div></div>
+            <div class="card" style="cursor:pointer;" onclick="window.hcGoSection && window.hcGoSection('sectionThreads')"><div style="font-weight:800;">Threads</div><div class="muted" style="margin-top:6px;">条件返信 / リード管理</div></div>
           </div>
         </div>
 
         <div class="row" style="margin-top:12px;">
           <div class="card">
-            <div style="font-weight:800; margin-bottom:10px;">Threads サマリー</div>
-            <div class="row3">
-              <div class="card"><div class="muted">条件返信</div><div style="font-size:22px; font-weight:900; margin-top:6px;">ON</div></div>
-              <div class="card"><div class="muted">新規リード</div><div style="font-size:22px; font-weight:900; margin-top:6px;">3</div></div>
-              <div class="card"><div class="muted">DM候補</div><div style="font-size:22px; font-weight:900; margin-top:6px;">2</div></div>
+            <div style="font-weight:800; margin-bottom:8px;">Threadsサマリー</div>
+            <div class="meta">
+              <span class="badge">投稿 <span id="thDashPostCount">0</span></span>
+              <span class="badge">返信ルール <span id="thDashRuleCount">0</span></span>
+              <span class="badge">リード <span id="thDashLeadCount">0</span></span>
             </div>
+            <div class="muted" style="margin-top:10px;">Threadsで保存した内容はこの端末のlocalStorageに残ります。</div>
           </div>
           <div class="card">
-            <div style="font-weight:800; margin-bottom:10px;">アクティビティログ</div>
-            <div id="dashboardActivityLog" class="out" style="margin-top:0;">
-              <div class="item"><pre>19:45 Threads 条件返信を実行</pre></div>
-              <div class="item"><pre>19:44 X 投稿を3件生成</pre></div>
-              <div class="item"><pre>19:40 Telegram 予約送信を登録</pre></div>
+            <div style="font-weight:800; margin-bottom:8px;">アクティビティログ</div>
+            <div id="activityLogList" class="out">
+              <div class="muted">まだログはありません</div>
             </div>
           </div>
         </div>
       </section>
+
 
       <section class="page-section" id="sectionX">
         <div class="page-title">
@@ -1431,115 +1432,167 @@ function removeUndefinedFields(obj){
 
       </section>
 
-      <section class="page-section" id="sectionThreads">
+      
+<section class="page-section" id="sectionThreads">
         <div class="card">
           <div class="page-title">
             <div>
               <h2>Threads</h2>
-              <p class="muted">投稿管理・条件返信・リード・自動DM候補・アクティビティログを1画面で管理します。</p>
+              <p class="muted">投稿管理・条件返信・リード一覧・設定をこの中でまとめて管理できます。</p>
             </div>
           </div>
-          <div class="service-tabs" id="threadsTabs">
-            <button class="tabbtn active" type="button" data-threads-tab="threadsPost">投稿管理</button>
-            <button class="tabbtn" type="button" data-threads-tab="threadsReply">条件返信</button>
-            <button class="tabbtn" type="button" data-threads-tab="threadsLead">リード一覧</button>
-            <button class="tabbtn" type="button" data-threads-tab="threadsDM">自動DM</button>
-            <button class="tabbtn" type="button" data-threads-tab="threadsLog">アクティビティ</button>
+
+          <div class="service-tabs" id="threadsTabNav">
+            <button class="tabbtn active" type="button" data-thread-tab="posts">投稿管理</button>
+            <button class="tabbtn" type="button" data-thread-tab="rules">条件返信</button>
+            <button class="tabbtn" type="button" data-thread-tab="leads">リード一覧</button>
+            <button class="tabbtn" type="button" data-thread-tab="settings">設定</button>
           </div>
 
-          <div id="threadsPost" class="threads-tab-panel" style="display:block;">
+          <div id="threadsTab_posts" class="thread-tab-panel">
             <div class="row">
               <div class="card">
                 <label>投稿タイトル</label>
-                <input id="threadsPostTitle" placeholder="例：Hyper Core 条件返信の案内" />
-                <label>投稿本文</label>
-                <textarea id="threadsPostBody" placeholder="Threadsに出したい投稿本文"></textarea>
+                <input id="thPostTitle" placeholder="例：Hyper Core 先行案内" />
+
+                <label>本文</label>
+                <textarea id="thPostBody" placeholder="Threadsに投稿する本文"></textarea>
+
+                <label>導線 / 補足（任意）</label>
+                <input id="thPostCta" placeholder="例：詳細はコメントに『詳細』で案内" />
+
+                <label>予約日時（任意）</label>
+                <input id="thPostSchedule" type="datetime-local" />
+
                 <div class="btns">
-                  <button type="button">下書き保存</button>
-                  <button class="secondary" type="button">予約投稿</button>
+                  <button type="button" id="thSavePostBtn">投稿を保存</button>
+                  <button class="secondary" type="button" id="thClearPostBtn">クリア</button>
                 </div>
               </div>
+
               <div class="card">
-                <label>運用メモ</label>
-                <textarea readonly>・コメント誘導型の投稿を作る
-・キーワード一致で条件返信
-・見込み客はリード一覧へ保存
-・DMは候補文を生成して手動確認</textarea>
+                <div style="font-weight:800; margin-bottom:8px;">保存済み投稿</div>
+                <div id="thPostList" class="out">
+                  <div class="muted">まだ投稿はありません</div>
+                </div>
               </div>
             </div>
           </div>
 
-          <div id="threadsReply" class="threads-tab-panel" style="display:none;">
+          <div id="threadsTab_rules" class="thread-tab-panel" style="display:none;">
             <div class="row">
               <div class="card">
-                <label>起動キーワード</label>
-                <textarea id="threadsKeywords">詳細
-料金
-興味ある
-欲しい
-リンク</textarea>
-                <label>公開返信テンプレ</label>
-                <textarea id="threadsReplyTemplate">ありがとうございます。詳細案内できます。必要ならそのまま返信してください。</textarea>
+                <label>ルール名</label>
+                <input id="thRuleName" placeholder="例：価格案内" />
+
+                <label>キーワード（カンマ区切り）</label>
+                <input id="thRuleKeywords" placeholder="詳細, 価格, 料金" />
+
+                <label>公開返信</label>
+                <textarea id="thRuleReply" placeholder="ありがとうございます。詳細案内できます。"></textarea>
+
+                <div class="row3">
+                  <div>
+                    <label>動作</label>
+                    <select id="thRuleMode">
+                      <option value="auto_reply">自動返信</option>
+                      <option value="ai_draft">AI下書き</option>
+                      <option value="hold">保留</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label>DM候補</label>
+                    <select id="thRuleDm">
+                      <option value="on">作成する</option>
+                      <option value="off">作成しない</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label>優先度</label>
+                    <input id="thRulePriority" type="number" min="1" max="99" value="10" />
+                  </div>
+                </div>
+
                 <div class="btns">
-                  <button type="button">条件返信を保存</button>
-                  <button class="secondary" type="button">テスト返信</button>
+                  <button type="button" id="thSaveRuleBtn">ルール保存</button>
+                  <button class="secondary" type="button" id="thSeedRuleBtn">サンプル追加</button>
                 </div>
               </div>
+
               <div class="card">
-                <label>安全設定</label>
-                <textarea readonly>・NGワードがあれば保留
-・同一ユーザー連投制限
-・深夜停止
-・長文はAI下書き送り</textarea>
+                <div style="font-weight:800; margin-bottom:8px;">返信ルール一覧</div>
+                <div id="thRuleList" class="out">
+                  <div class="muted">まだルールはありません</div>
+                </div>
               </div>
             </div>
           </div>
 
-          <div id="threadsLead" class="threads-tab-panel" style="display:none;">
-            <div class="card tableScroll">
-              <table class="acct-table">
-                <thead>
-                  <tr><th>ユーザー</th><th>コメント</th><th>状態</th><th>DM候補</th></tr>
-                </thead>
-                <tbody>
-                  <tr><td>@client_a</td><td>詳細知りたいです</td><td><span class="badge">新規</span></td><td>詳細案内できます。必要ならそのまま返信ください。</td></tr>
-                  <tr><td>@client_b</td><td>料金いくら？</td><td><span class="badge">確認待ち</span></td><td>価格と使い方をまとめて案内できます。</td></tr>
-                  <tr><td>@client_c</td><td>興味あります</td><td><span class="badge">返信済み</span></td><td>用途に合わせて案内できます。</td></tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          <div id="threadsDM" class="threads-tab-panel" style="display:none;">
+          <div id="threadsTab_leads" class="thread-tab-panel" style="display:none;">
             <div class="row">
               <div class="card">
-                <label>DM候補テンプレ</label>
-                <textarea id="threadsDMTemplate">ありがとうございます。詳細や使い方を案内できます。気になる点があればそのまま教えてください。</textarea>
+                <div style="font-weight:800; margin-bottom:8px;">テスト用リード追加</div>
+                <label>ユーザー名</label>
+                <input id="thLeadUser" placeholder="@example_user" />
+
+                <label>コメント内容</label>
+                <textarea id="thLeadComment" placeholder="例：詳細知りたいです"></textarea>
+
+                <label>元投稿タイトル</label>
+                <input id="thLeadSource" placeholder="どの投稿から来たか" />
+
                 <div class="btns">
-                  <button type="button">候補文を保存</button>
-                  <button class="secondary" type="button">AI下書き生成</button>
+                  <button type="button" id="thAddLeadBtn">リード追加</button>
+                  <button class="secondary" type="button" id="thSimulateLeadBtn">ルールから自動作成</button>
                 </div>
               </div>
+
               <div class="card">
-                <label>運用ルール</label>
-                <textarea readonly>・Threads内DM自動送信は現状候補文ベース
-・公開返信 → リード保存 → DM候補生成の流れ
-・危険語がある場合は自動送信しない</textarea>
+                <div style="font-weight:800; margin-bottom:8px;">リード一覧</div>
+                <div id="thLeadList" class="out">
+                  <div class="muted">まだリードはありません</div>
+                </div>
               </div>
             </div>
           </div>
 
-          <div id="threadsLog" class="threads-tab-panel" style="display:none;">
-            <div class="card">
-              <div id="threadsActivityLog" class="out" style="margin-top:0;">
-                <div class="item"><pre>19:45 条件返信: @client_a に公開返信</pre></div>
-                <div class="item"><pre>19:43 リード保存: @client_b / 料金いくら？</pre></div>
-                <div class="item"><pre>19:41 DM候補生成: @client_c</pre></div>
+          <div id="threadsTab_settings" class="thread-tab-panel" style="display:none;">
+            <div class="row">
+              <div class="card">
+                <label>返信トーン</label>
+                <select id="thSettingTone">
+                  <option value="friendly">フレンドリー</option>
+                  <option value="polite">丁寧</option>
+                  <option value="sales">営業寄り</option>
+                  <option value="short">短文</option>
+                </select>
+
+                <label>DM候補の締め文</label>
+                <input id="thSettingCta" placeholder="例：気になる点があればそのまま返信ください。" />
+
+                <label>管理メモ</label>
+                <textarea id="thSettingMemo" placeholder="Threads運用メモ"></textarea>
+
+                <div class="btns">
+                  <button type="button" id="thSaveSettingsBtn">設定保存</button>
+                  <button class="secondary" type="button" id="thResetAllBtn">Threadsデータ全削除</button>
+                </div>
+              </div>
+
+              <div class="card">
+                <div style="font-weight:800; margin-bottom:8px;">現在の保存状況</div>
+                <div class="meta">
+                  <span class="badge">投稿 <span id="thSettingPostCount">0</span></span>
+                  <span class="badge">返信ルール <span id="thSettingRuleCount">0</span></span>
+                  <span class="badge">リード <span id="thSettingLeadCount">0</span></span>
+                </div>
+                <div class="muted" style="margin-top:12px;">この設定はlocalStorage保存です。バックエンド接続前の管理画面として使えます。</div>
               </div>
             </div>
           </div>
         </div>
       </section>
+
 
       <section class="page-section" id="sectionSettings">
         <div class="card">
@@ -3771,16 +3824,413 @@ function hcScrollToOutput(){
 
 <script>
 (function(){
-  const tabs = document.querySelectorAll('[data-threads-tab]');
-  const panels = document.querySelectorAll('.threads-tab-panel');
-  tabs.forEach(btn => {
-    btn.addEventListener('click', () => {
-      const target = btn.getAttribute('data-threads-tab');
-      tabs.forEach(x => x.classList.toggle('active', x === btn));
-      panels.forEach(p => p.style.display = (p.id === target ? 'block' : 'none'));
+  const hcThreadStore = {
+    posts: 'hc_threads_posts_v1',
+    rules: 'hc_threads_rules_v1',
+    leads: 'hc_threads_leads_v1',
+    settings: 'hc_threads_settings_v1',
+    logs: 'hc_activity_logs_v1'
+  };
+  const $ = (id)=>document.getElementById(id);
+
+  function read(key, fallback){
+    try{
+      const raw = localStorage.getItem(key);
+      if(!raw) return fallback;
+      return JSON.parse(raw);
+    }catch(e){ return fallback; }
+  }
+  function write(key, value){
+    localStorage.setItem(key, JSON.stringify(value));
+  }
+  function uid(prefix){
+    return (prefix || 'id') + '_' + Math.random().toString(16).slice(2) + Date.now().toString(16);
+  }
+  function esc(s){
+    return String(s ?? '').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;');
+  }
+  function nowLabel(){
+    const d = new Date();
+    const y = d.getFullYear();
+    const m = String(d.getMonth()+1).padStart(2,'0');
+    const da = String(d.getDate()).padStart(2,'0');
+    const h = String(d.getHours()).padStart(2,'0');
+    const mi = String(d.getMinutes()).padStart(2,'0');
+    return `${y}-${m}-${da} ${h}:${mi}`;
+  }
+  function addLog(action, detail){
+    const logs = read(hcThreadStore.logs, []);
+    logs.unshift({ id: uid('log'), action, detail, at: nowLabel() });
+    write(hcThreadStore.logs, logs.slice(0, 30));
+    renderLogs();
+  }
+  function renderLogs(){
+    const box = $('activityLogList');
+    if(!box) return;
+    const logs = read(hcThreadStore.logs, []);
+    if(!logs.length){
+      box.innerHTML = '<div class="muted">まだログはありません</div>';
+      return;
+    }
+    box.innerHTML = logs.map(log => `
+      <div class="item">
+        <div style="font-weight:800;">${esc(log.action)}</div>
+        <div class="muted" style="margin-top:4px;">${esc(log.at)}</div>
+        <div style="margin-top:6px;">${esc(log.detail || '')}</div>
+      </div>
+    `).join('');
+  }
+
+  function renderSummary(){
+    const posts = read(hcThreadStore.posts, []);
+    const rules = read(hcThreadStore.rules, []);
+    const leads = read(hcThreadStore.leads, []);
+    if($('thDashPostCount')) $('thDashPostCount').textContent = posts.length;
+    if($('thDashRuleCount')) $('thDashRuleCount').textContent = rules.length;
+    if($('thDashLeadCount')) $('thDashLeadCount').textContent = leads.length;
+    if($('thSettingPostCount')) $('thSettingPostCount').textContent = posts.length;
+    if($('thSettingRuleCount')) $('thSettingRuleCount').textContent = rules.length;
+    if($('thSettingLeadCount')) $('thSettingLeadCount').textContent = leads.length;
+  }
+
+  function renderPosts(){
+    const posts = read(hcThreadStore.posts, []);
+    const box = $('thPostList');
+    if(!box) return;
+    if(!posts.length){
+      box.innerHTML = '<div class="muted">まだ投稿はありません</div>';
+      renderSummary();
+      return;
+    }
+    box.innerHTML = posts.map(post => `
+      <div class="item">
+        <div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start;">
+          <div>
+            <div style="font-weight:800;">${esc(post.title || '無題')}</div>
+            <div class="muted" style="margin-top:4px;">${esc(post.schedule || '即時 / 下書き')} ・ ${esc(post.createdAt || '')}</div>
+          </div>
+          <div class="badge">${esc(post.status || 'draft')}</div>
+        </div>
+        <pre style="margin-top:8px;white-space:pre-wrap;">${esc(post.body || '')}${post.cta ? '\n\n' + esc(post.cta) : ''}</pre>
+        <div class="btns">
+          <button class="secondary" type="button" data-copy-post="${esc(post.id)}">コピー</button>
+          <button class="secondary" type="button" data-del-post="${esc(post.id)}">削除</button>
+        </div>
+      </div>
+    `).join('');
+    renderSummary();
+  }
+
+  function renderRules(){
+    const rules = read(hcThreadStore.rules, []).sort((a,b)=>(a.priority||99)-(b.priority||99));
+    const box = $('thRuleList');
+    if(!box) return;
+    if(!rules.length){
+      box.innerHTML = '<div class="muted">まだルールはありません</div>';
+      renderSummary();
+      return;
+    }
+    box.innerHTML = rules.map(rule => `
+      <div class="item">
+        <div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start;">
+          <div>
+            <div style="font-weight:800;">${esc(rule.name)}</div>
+            <div class="muted" style="margin-top:4px;">優先度 ${esc(rule.priority)} / ${esc(rule.mode)} / DM候補 ${rule.dm === 'on' ? 'ON' : 'OFF'}</div>
+          </div>
+          <div class="badge">${esc((rule.keywords || []).join(', '))}</div>
+        </div>
+        <pre style="margin-top:8px;white-space:pre-wrap;">${esc(rule.reply || '')}</pre>
+        <div class="btns">
+          <button class="secondary" type="button" data-del-rule="${esc(rule.id)}">削除</button>
+        </div>
+      </div>
+    `).join('');
+    renderSummary();
+  }
+
+  function buildDmCandidate(lead){
+    const settings = read(hcThreadStore.settings, { tone:'friendly', cta:'気になる点があればそのまま返信ください。' });
+    const toneMap = {
+      friendly: 'ありがとうございます。気軽に案内できます。',
+      polite: 'ありがとうございます。丁寧にご案内いたします。',
+      sales: 'ありがとうございます。用途に合わせて提案できます。',
+      short: 'ありがとうございます。詳細案内できます。'
+    };
+    const head = toneMap[settings.tone] || toneMap.friendly;
+    return `${lead.user}さん\n${head}\n${settings.cta || ''}`.trim();
+  }
+
+  function renderLeads(){
+    const leads = read(hcThreadStore.leads, []);
+    const box = $('thLeadList');
+    if(!box) return;
+    if(!leads.length){
+      box.innerHTML = '<div class="muted">まだリードはありません</div>';
+      renderSummary();
+      return;
+    }
+    box.innerHTML = leads.map(lead => `
+      <div class="item">
+        <div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start;">
+          <div>
+            <div style="font-weight:800;">${esc(lead.user)}</div>
+            <div class="muted" style="margin-top:4px;">${esc(lead.source || 'Threads')} ・ ${esc(lead.createdAt || '')}</div>
+          </div>
+          <div class="badge">${esc(lead.status || 'new')}</div>
+        </div>
+        <pre style="margin-top:8px;white-space:pre-wrap;">${esc(lead.comment || '')}</pre>
+        ${lead.dmCandidate ? `<div style="margin-top:10px;"><div class="muted">DM候補</div><pre style="white-space:pre-wrap;">${esc(lead.dmCandidate)}</pre></div>` : ''}
+        <div class="btns">
+          <button class="secondary" type="button" data-copy-dm="${esc(lead.id)}">DM候補コピー</button>
+          <button class="secondary" type="button" data-done-lead="${esc(lead.id)}">対応済み</button>
+          <button class="secondary" type="button" data-del-lead="${esc(lead.id)}">削除</button>
+        </div>
+      </div>
+    `).join('');
+    renderSummary();
+  }
+
+  function loadSettingsToForm(){
+    const s = read(hcThreadStore.settings, { tone:'friendly', cta:'気になる点があればそのまま返信ください。', memo:'' });
+    if($('thSettingTone')) $('thSettingTone').value = s.tone || 'friendly';
+    if($('thSettingCta')) $('thSettingCta').value = s.cta || '';
+    if($('thSettingMemo')) $('thSettingMemo').value = s.memo || '';
+  }
+
+  function saveSettings(){
+    const data = {
+      tone: $('thSettingTone') ? $('thSettingTone').value : 'friendly',
+      cta: $('thSettingCta') ? $('thSettingCta').value.trim() : '',
+      memo: $('thSettingMemo') ? $('thSettingMemo').value.trim() : ''
+    };
+    write(hcThreadStore.settings, data);
+    addLog('Threads設定保存', `トーン: ${data.tone}`);
+    renderLeads();
+    renderSummary();
+  }
+
+  function setThreadTab(tab){
+    document.querySelectorAll('#threadsTabNav .tabbtn').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.threadTab === tab);
     });
-  });
+    document.querySelectorAll('.thread-tab-panel').forEach(panel => panel.style.display = 'none');
+    const target = document.getElementById('threadsTab_' + tab);
+    if(target) target.style.display = 'block';
+  }
+
+  function bindThreadTabs(){
+    document.querySelectorAll('#threadsTabNav .tabbtn').forEach(btn => {
+      btn.addEventListener('click', ()=>setThreadTab(btn.dataset.threadTab));
+    });
+  }
+
+  function initThreadForms(){
+    $('thSavePostBtn')?.addEventListener('click', ()=>{
+      const title = $('thPostTitle')?.value.trim() || '';
+      const body = $('thPostBody')?.value.trim() || '';
+      const cta = $('thPostCta')?.value.trim() || '';
+      const schedule = $('thPostSchedule')?.value || '';
+      if(!title && !body) return alert('投稿タイトルか本文を入れてください');
+      const posts = read(hcThreadStore.posts, []);
+      posts.unshift({
+        id: uid('post'),
+        title, body, cta, schedule,
+        status: schedule ? 'scheduled' : 'draft',
+        createdAt: nowLabel()
+      });
+      write(hcThreadStore.posts, posts);
+      $('thPostTitle').value = '';
+      $('thPostBody').value = '';
+      $('thPostCta').value = '';
+      $('thPostSchedule').value = '';
+      addLog('Threads投稿保存', title || '無題投稿');
+      renderPosts();
+    });
+
+    $('thClearPostBtn')?.addEventListener('click', ()=>{
+      if($('thPostTitle')) $('thPostTitle').value = '';
+      if($('thPostBody')) $('thPostBody').value = '';
+      if($('thPostCta')) $('thPostCta').value = '';
+      if($('thPostSchedule')) $('thPostSchedule').value = '';
+    });
+
+    $('thSaveRuleBtn')?.addEventListener('click', ()=>{
+      const name = $('thRuleName')?.value.trim() || '';
+      const keywords = ($('thRuleKeywords')?.value || '').split(',').map(v=>v.trim()).filter(Boolean);
+      const reply = $('thRuleReply')?.value.trim() || '';
+      const mode = $('thRuleMode')?.value || 'auto_reply';
+      const dm = $('thRuleDm')?.value || 'on';
+      const priority = parseInt($('thRulePriority')?.value || '10', 10);
+      if(!name || !keywords.length || !reply) return alert('ルール名・キーワード・公開返信を入れてください');
+      const rules = read(hcThreadStore.rules, []);
+      rules.unshift({ id: uid('rule'), name, keywords, reply, mode, dm, priority, createdAt: nowLabel() });
+      write(hcThreadStore.rules, rules);
+      $('thRuleName').value = '';
+      $('thRuleKeywords').value = '';
+      $('thRuleReply').value = '';
+      $('thRuleMode').value = 'auto_reply';
+      $('thRuleDm').value = 'on';
+      $('thRulePriority').value = '10';
+      addLog('Threads返信ルール保存', name);
+      renderRules();
+    });
+
+    $('thSeedRuleBtn')?.addEventListener('click', ()=>{
+      const rules = read(hcThreadStore.rules, []);
+      rules.unshift({
+        id: uid('rule'),
+        name: '価格案内',
+        keywords: ['詳細', '価格', '料金'],
+        reply: 'ありがとうございます。詳細案内できます。気になる点があればそのまま返信ください。',
+        mode: 'auto_reply',
+        dm: 'on',
+        priority: 10,
+        createdAt: nowLabel()
+      });
+      write(hcThreadStore.rules, rules);
+      addLog('Threads返信ルール保存', 'サンプルルールを追加');
+      renderRules();
+    });
+
+    $('thAddLeadBtn')?.addEventListener('click', ()=>{
+      const user = $('thLeadUser')?.value.trim() || '';
+      const comment = $('thLeadComment')?.value.trim() || '';
+      const source = $('thLeadSource')?.value.trim() || '';
+      if(!user || !comment) return alert('ユーザー名とコメント内容を入れてください');
+      const lead = {
+        id: uid('lead'),
+        user,
+        comment,
+        source,
+        status: 'new',
+        dmCandidate: buildDmCandidate({ user, comment, source }),
+        createdAt: nowLabel()
+      };
+      const leads = read(hcThreadStore.leads, []);
+      leads.unshift(lead);
+      write(hcThreadStore.leads, leads);
+      $('thLeadUser').value = '';
+      $('thLeadComment').value = '';
+      $('thLeadSource').value = '';
+      addLog('Threadsリード追加', user);
+      renderLeads();
+    });
+
+    $('thSimulateLeadBtn')?.addEventListener('click', ()=>{
+      const rules = read(hcThreadStore.rules, []);
+      if(!rules.length) return alert('先にルールを保存してください');
+      const rule = rules[0];
+      const comment = `${rule.keywords[0]}お願いします`;
+      const lead = {
+        id: uid('lead'),
+        user: '@sample_user',
+        comment,
+        source: '自動テスト',
+        status: 'new',
+        dmCandidate: rule.dm === 'on' ? buildDmCandidate({ user:'@sample_user', comment, source:'自動テスト' }) : '',
+        createdAt: nowLabel()
+      };
+      const leads = read(hcThreadStore.leads, []);
+      leads.unshift(lead);
+      write(hcThreadStore.leads, leads);
+      addLog('Threadsリード追加', 'ルールから自動作成');
+      renderLeads();
+    });
+
+    $('thSaveSettingsBtn')?.addEventListener('click', saveSettings);
+    $('thResetAllBtn')?.addEventListener('click', ()=>{
+      if(!confirm('Threadsの投稿・ルール・リード・設定をすべて削除しますか？')) return;
+      localStorage.removeItem(hcThreadStore.posts);
+      localStorage.removeItem(hcThreadStore.rules);
+      localStorage.removeItem(hcThreadStore.leads);
+      localStorage.removeItem(hcThreadStore.settings);
+      addLog('Threadsデータ削除', '投稿・ルール・リード・設定を全削除');
+      loadSettingsToForm();
+      renderPosts();
+      renderRules();
+      renderLeads();
+      renderSummary();
+    });
+
+    $('thPostList')?.addEventListener('click', async (e)=>{
+      const copyId = e.target?.getAttribute('data-copy-post');
+      const delId = e.target?.getAttribute('data-del-post');
+      if(copyId){
+        const post = read(hcThreadStore.posts, []).find(v=>v.id===copyId);
+        if(post){
+          const text = [post.title, post.body, post.cta].filter(Boolean).join('\n\n');
+          try{ await navigator.clipboard.writeText(text); alert('コピーしました'); }catch(_){}
+        }
+      }
+      if(delId){
+        const posts = read(hcThreadStore.posts, []).filter(v=>v.id!==delId);
+        write(hcThreadStore.posts, posts);
+        addLog('Threads投稿削除', delId);
+        renderPosts();
+      }
+    });
+
+    $('thRuleList')?.addEventListener('click', (e)=>{
+      const delId = e.target?.getAttribute('data-del-rule');
+      if(delId){
+        const rules = read(hcThreadStore.rules, []).filter(v=>v.id!==delId);
+        write(hcThreadStore.rules, rules);
+        addLog('Threads返信ルール削除', delId);
+        renderRules();
+      }
+    });
+
+    $('thLeadList')?.addEventListener('click', async (e)=>{
+      const copyId = e.target?.getAttribute('data-copy-dm');
+      const doneId = e.target?.getAttribute('data-done-lead');
+      const delId = e.target?.getAttribute('data-del-lead');
+
+      if(copyId){
+        const lead = read(hcThreadStore.leads, []).find(v=>v.id===copyId);
+        if(lead?.dmCandidate){
+          try{ await navigator.clipboard.writeText(lead.dmCandidate); alert('DM候補をコピーしました'); }catch(_){}
+        }
+      }
+      if(doneId){
+        const leads = read(hcThreadStore.leads, []).map(v=>v.id===doneId ? { ...v, status:'done' } : v);
+        write(hcThreadStore.leads, leads);
+        addLog('Threadsリード更新', '対応済みに変更');
+        renderLeads();
+      }
+      if(delId){
+        const leads = read(hcThreadStore.leads, []).filter(v=>v.id!==delId);
+        write(hcThreadStore.leads, leads);
+        addLog('Threadsリード削除', delId);
+        renderLeads();
+      }
+    });
+  }
+
+  function initThreads(){
+    if(!document.getElementById('sectionThreads')) return;
+    bindThreadTabs();
+    loadSettingsToForm();
+    initThreadForms();
+    renderPosts();
+    renderRules();
+    renderLeads();
+    renderSummary();
+    renderLogs();
+  }
+
+  if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initThreads);
+  else initThreads();
+
+  window.hcGoSection = function(sectionId){
+    if(typeof setSection === 'function') setSection(sectionId);
+    else {
+      document.querySelectorAll('.page-section').forEach(el => el.classList.remove('active'));
+      const target = document.getElementById(sectionId);
+      if(target) target.classList.add('active');
+    }
+  };
 })();
 </script>
+
 </body>
 </html>
