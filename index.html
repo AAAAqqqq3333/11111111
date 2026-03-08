@@ -1105,13 +1105,14 @@ body { min-height:100vh; }
 @media (max-width:900px){.threads-stat-grid{grid-template-columns:repeat(2,1fr)}}
 
 
-.backend-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.job-list{display:grid;gap:10px;margin-top:12px}
-.job-item{padding:12px;border-radius:14px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.05)}
-.job-head{display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap}
-.codebox{white-space:pre-wrap;word-break:break-word;padding:12px;border-radius:14px;border:1px solid rgba(255,255,255,.12);background:rgba(10,14,20,.70);margin-top:10px}
-.smallpill{display:inline-flex;align-items:center;padding:4px 10px;border-radius:999px;border:1px solid rgba(255,255,255,.12);font-size:12px;background:rgba(255,255,255,.06)}
-@media (max-width:900px){.backend-grid{grid-template-columns:1fr}}
+.threads-grid-2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.feature-note{font-size:12px;color:#9fb0c6;margin-top:8px;line-height:1.6}
+.monitor-list,.export-list{display:grid;gap:10px;margin-top:12px}
+.monitor-item,.export-item{padding:12px;border-radius:14px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.05)}
+.kpi-row{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:12px}
+.kpi-box{padding:12px;border-radius:14px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.05)}
+.kpi-box .num{font-size:22px;font-weight:900}
+@media (max-width:900px){.threads-grid-2,.kpi-row{grid-template-columns:1fr}}
 
 </style>
 
@@ -1275,6 +1276,27 @@ function removeUndefinedFields(obj){
           <div>
             <h2>X</h2>
             <p class="muted">既存の投稿生成機能はそのまま残し、X専用ページとして分離しています。</p>
+          <div class="card" style="margin-top:12px;">
+            <div style="font-weight:800; margin-bottom:8px;">X自動ポスト設定</div>
+            <div class="muted">生成済みポストを予約として保存しておけるローカル管理機能です。後からWorker / Queue実行へ接続できます。</div>
+            <div class="row">
+              <div>
+                <label>ジョブ名</label>
+                <input id="xAutoPostTitle" placeholder="例：朝ポスト配信" />
+                <label>実行日時</label>
+                <input id="xAutoPostAt" type="datetime-local" />
+              </div>
+              <div>
+                <label>投稿内容</label>
+                <textarea id="xAutoPostText" placeholder="ここにXへ投げる内容"></textarea>
+              </div>
+            </div>
+            <div class="btns">
+              <button type="button" id="xAutoPostSaveBtn">予約保存</button>
+              <button type="button" class="secondary" id="xAutoPostRunNowBtn">今すぐ投稿テスト</button>
+            </div>
+            <div id="xAutoPostList" class="sched-list" style="margin-top:12px;"></div>
+          </div>
           </div>
         </div>
 
@@ -1465,7 +1487,8 @@ function removeUndefinedFields(obj){
             <button class="tabbtn" type="button" data-threadstab="dm">DM連携</button>
             <button class="tabbtn" type="button" data-threadstab="settings">設定</button>
             <button class="tabbtn" type="button" data-threadstab="automation">自動処理</button>
-            <button class="tabbtn" type="button" data-threadstab="backend">連携</button>
+            <button class="tabbtn" type="button" data-threadstab="monitor">監視</button>
+            <button class="tabbtn" type="button" data-threadstab="export">出力</button>
           </div>
 
           <div class="threads-tabpanel active" id="threadsTab_posts">
@@ -1611,53 +1634,56 @@ function removeUndefinedFields(obj){
           </div>
 
           
-          <div class="threads-tabpanel" id="threadsTab_backend">
-            <div class="backend-grid">
+          <div class="threads-tabpanel" id="threadsTab_monitor">
+            <div class="threads-grid-2">
               <div class="card">
-                <div style="font-weight:800; margin-bottom:8px;">バックエンド連携設定</div>
-                <div class="muted">Cloudflare Workers や独自APIをここに登録して、後から本番接続しやすくします。</div>
-                <label>Threads Worker URL</label>
-                <input id="threadsBackendUrl" placeholder="https://your-worker.workers.dev" />
-                <label>Webhook Secret</label>
-                <input id="threadsWebhookSecret" placeholder="任意" />
-                <label>Instagram DM Endpoint</label>
-                <input id="threadsDmEndpoint" placeholder="https://your-api.example.com/instagram/dm" />
+                <div style="font-weight:800; margin-bottom:8px;">投稿監視BOT</div>
+                <div class="muted">特定投稿を監視対象として保存し、後からCloudflare Workersの定期取得へつなげる前提の設定です。</div>
+                <label>監視名</label>
+                <input id="threadsMonitorName" placeholder="例：詳細誘導投稿A" />
+                <label>監視対象URL</label>
+                <input id="threadsMonitorUrl" placeholder="https://threads.net/t/..." />
+                <label>監視頻度</label>
+                <select id="threadsMonitorInterval">
+                  <option value="5">5分</option>
+                  <option value="10">10分</option>
+                  <option value="30">30分</option>
+                  <option value="60">60分</option>
+                </select>
+                <label>自動処理</label>
+                <select id="threadsMonitorMode">
+                  <option value="reply">コメント取得 + 条件返信</option>
+                  <option value="lead">コメント取得 + リード保存</option>
+                  <option value="full">コメント取得 + 条件返信 + DM候補</option>
+                </select>
                 <div class="btns">
-                  <button type="button" id="threadsSaveBackendBtn">連携設定を保存</button>
+                  <button type="button" id="threadsSaveMonitorBtn">監視を保存</button>
                 </div>
-                <div class="muted" id="threadsBackendStatus" style="margin-top:10px;">まだ保存していません。</div>
+                <div class="feature-note">※ 今はローカル保存。後からWorkerのCronにそのまま渡せる形です。</div>
               </div>
-
               <div class="card">
-                <div style="font-weight:800; margin-bottom:8px;">Webhook受信テスト</div>
-                <div class="muted">Threadsのコメント通知を想定したJSONを入れて、取り込み処理をテストします。</div>
-                <label>テストJSON</label>
-                <textarea id="threadsWebhookPayload" placeholder='{"post":"https://threads.net/t/demo","user":"@demo_user","comment":"詳細ほしいです"}'></textarea>
-                <div class="btns">
-                  <button type="button" id="threadsWebhookTestBtn">受信テスト</button>
-                  <button type="button" class="secondary" id="threadsWebhookSampleBtn">サンプル投入</button>
-                </div>
-                <div class="codebox" id="threadsWebhookResult">ここに結果が表示されます。</div>
+                <div style="font-weight:800; margin-bottom:8px;">監視一覧</div>
+                <div class="muted">保存した監視設定の一覧です。</div>
+                <div id="threadsMonitorList" class="monitor-list"></div>
               </div>
             </div>
+          </div>
 
-            <div class="row" style="margin-top:12px;">
+          <div class="threads-tabpanel" id="threadsTab_export">
+            <div class="threads-grid-2">
               <div class="card">
-                <div style="font-weight:800; margin-bottom:8px;">ジョブキュー</div>
-                <div class="muted">自動返信・DM候補生成・送信失敗をローカルで積んで確認できます。</div>
-                <div id="threadsJobQueue" class="job-list"></div>
+                <div style="font-weight:800; margin-bottom:8px;">リード出力</div>
+                <div class="muted">保存済みのリードをCSV/JSONで書き出せます。</div>
                 <div class="btns">
-                  <button type="button" class="secondary" id="threadsRunPendingJobsBtn">保留ジョブを再実行</button>
-                  <button type="button" class="secondary danger" id="threadsClearJobsBtn">ジョブ全削除</button>
+                  <button type="button" id="threadsExportCsvBtn">CSV出力</button>
+                  <button type="button" class="secondary" id="threadsExportJsonBtn">JSON出力</button>
                 </div>
+                <div class="feature-note">DM候補・状態・コメント本文も含めてエクスポートされます。</div>
               </div>
               <div class="card">
-                <div style="font-weight:800; margin-bottom:8px;">本番接続メモ</div>
-                <div class="muted">この画面ではローカル保存まで対応。実際の自動化は保存したURL先へ接続していく想定です。</div>
-                <div class="codebox" id="threadsBackendGuide">1. Worker URL を保存
-2. Webhook テストで JSON を投入
-3. ジョブキューで処理確認
-4. 実API接続後に fetch 先を差し替え</div>
+                <div style="font-weight:800; margin-bottom:8px;">データ出力ログ</div>
+                <div class="muted">最近の書き出し履歴を表示します。</div>
+                <div id="threadsExportLog" class="export-list"></div>
               </div>
             </div>
           </div>
@@ -1708,6 +1734,19 @@ function removeUndefinedFields(obj){
             </div>
             <div class="card">
               <div style="font-weight:800; margin-bottom:8px;">運用イメージ</div>
+              <div class="card" style="margin-top:12px;">
+                <div style="font-weight:800; margin-bottom:8px;">自動アップデート</div>
+                <div class="muted">最新バージョンの確認とリリースメモ保存に使う管理枠です。</div>
+                <label>現在バージョン</label>
+                <input id="hcCurrentVersion" value="v2.0.0" />
+                <label>最新リリースメモ</label>
+                <textarea id="hcReleaseNote" placeholder="アップデート内容を記録"></textarea>
+                <div class="btns">
+                  <button type="button" id="hcSaveVersionBtn">更新情報を保存</button>
+                  <button type="button" class="secondary" id="hcCheckVersionBtn">更新チェック</button>
+                </div>
+                <div id="hcVersionStatus" class="feature-note">まだ保存していません。</div>
+              </div>
               <div class="muted">左メニューまたはハンバーガーで移動し、各サービスの中身だけ差し替えます。</div>
             </div>
           </div>
@@ -4386,192 +4425,292 @@ function hcScrollToOutput(){
 
 <script>
 (() => {
-  const LSB = { backend:'threads_backend_v1', jobs:'threads_jobs_v1' };
-  const read = (k,f)=>{ try{ const v=localStorage.getItem(k); return v?JSON.parse(v):f; }catch(e){ return f; } };
-  const write = (k,v)=> localStorage.setItem(k, JSON.stringify(v));
-  const uid = ()=> (crypto.randomUUID ? crypto.randomUUID() : ('job_' + Math.random().toString(16).slice(2) + Date.now()));
-  const esc = (s)=> String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-  const jp = (iso)=> { try{return new Date(iso).toLocaleString('ja-JP');}catch(e){return iso||'';} };
+  const LS = {
+    monitors: 'threads_monitors_v1',
+    exportlog: 'threads_exportlog_v1',
+    xposts: 'x_autopost_jobs_v1',
+    version: 'hc_version_meta_v1'
+  };
+
+  const read = (key, fallback) => { try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; } catch(e){ return fallback; } };
+  const write = (key, value) => localStorage.setItem(key, JSON.stringify(value));
+  const uid = () => (crypto.randomUUID ? crypto.randomUUID() : ('id_' + Math.random().toString(16).slice(2) + Date.now()));
+  const esc = (s) => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  const jp = (iso) => { try { return new Date(iso).toLocaleString('ja-JP'); } catch(e){ return iso || ''; } };
 
   function toast(msg){
-    let t=document.getElementById('threadsToastBackend');
+    let t = document.getElementById('featurePackToast');
     if(!t){
-      t=document.createElement('div');
-      t.id='threadsToastBackend';
-      t.style.cssText='position:fixed;left:50%;bottom:62px;transform:translateX(-50%);padding:10px 14px;border-radius:999px;border:1px solid rgba(255,255,255,.18);background:rgba(12,14,20,.92);color:#fff;font-weight:900;font-size:13px;z-index:30001;opacity:0;transition:opacity .15s ease;';
+      t = document.createElement('div');
+      t.id = 'featurePackToast';
+      t.style.cssText = 'position:fixed;left:50%;bottom:94px;transform:translateX(-50%);padding:10px 14px;border-radius:999px;border:1px solid rgba(255,255,255,.18);background:rgba(12,14,20,.92);color:#fff;font-weight:900;font-size:13px;z-index:30003;opacity:0;transition:opacity .15s ease;';
       document.body.appendChild(t);
     }
-    t.textContent=msg;
-    t.style.opacity='1';
+    t.textContent = msg;
+    t.style.opacity = '1';
     clearTimeout(t._tm);
-    t._tm=setTimeout(()=>t.style.opacity='0',1400);
+    t._tm = setTimeout(()=>t.style.opacity='0', 1400);
   }
 
-  function addBackendLog(message){
-    const logs = read('threads_logs_v1', []);
-    logs.unshift({ id:uid(), type:'Backend', message, createdAt:new Date().toISOString() });
-    localStorage.setItem('threads_logs_v1', JSON.stringify(logs.slice(0,100)));
-    window.dispatchEvent(new CustomEvent('threads-log-updated'));
+  function appendThreadsLog(message){
+    try{
+      const logs = read('threads_logs_v1', []);
+      logs.unshift({ id: uid(), type:'Feature', message, createdAt:new Date().toISOString() });
+      write('threads_logs_v1', logs.slice(0, 120));
+      window.dispatchEvent(new CustomEvent('threads-log-updated'));
+    }catch(e){}
   }
 
-  function renderJobs(){
-    const jobs = read(LSB.jobs, []);
-    const el = document.getElementById('threadsJobQueue');
+  function renderMonitorList(){
+    const items = read(LS.monitors, []);
+    const el = document.getElementById('threadsMonitorList');
+    if(!el) return;
+    if(!items.length){
+      el.innerHTML = '<div class="muted">監視設定はまだありません。</div>';
+      return;
+    }
+    el.innerHTML = items.map(item => `
+      <div class="monitor-item">
+        <div><b>${esc(item.name || '無題')}</b></div>
+        <div class="threads-mini">${esc(item.url || '')}</div>
+        <div class="threads-mini">頻度: ${esc(item.interval || '')}分 / モード: ${esc(item.mode || '')}</div>
+        <div class="threads-actions">
+          <button type="button" class="secondary" data-monitor-action="run" data-id="${esc(item.id)}">今すぐ実行</button>
+          <button type="button" class="secondary danger" data-monitor-action="delete" data-id="${esc(item.id)}">削除</button>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  function renderExportLog(){
+    const items = read(LS.exportlog, []);
+    const el = document.getElementById('threadsExportLog');
+    if(!el) return;
+    if(!items.length){
+      el.innerHTML = '<div class="muted">書き出し履歴はまだありません。</div>';
+      return;
+    }
+    el.innerHTML = items.slice(0, 8).map(item => `
+      <div class="export-item">
+        <div><b>${esc(item.type)}</b></div>
+        <div class="threads-mini">${esc(jp(item.createdAt))}</div>
+        <div class="threads-mini">${esc(item.summary || '')}</div>
+      </div>
+    `).join('');
+  }
+
+  function renderXJobs(){
+    const jobs = read(LS.xposts, []);
+    const el = document.getElementById('xAutoPostList');
     if(!el) return;
     if(!jobs.length){
-      el.innerHTML = '<div class="muted">保留ジョブはありません。</div>';
+      el.innerHTML = '<div class="muted">X自動ポスト予約はまだありません。</div>';
       return;
     }
     el.innerHTML = jobs.map(job => `
-      <div class="job-item">
-        <div class="job-head">
-          <div><b>${esc(job.type||'job')}</b> <span class="smallpill">${esc(job.status||'pending')}</span></div>
-          <div class="threads-mini">${esc(jp(job.createdAt))}</div>
-        </div>
-        <div class="threads-mini" style="margin-top:8px;">${esc(job.summary||'')}</div>
+      <div class="sched-item">
+        <div><b>${esc(job.title || '無題')}</b></div>
+        <div class="threads-mini">${esc(jp(job.runAt))}</div>
+        <pre>${esc(job.text || '')}</pre>
         <div class="threads-actions">
-          <button type="button" class="secondary" data-job-action="run" data-id="${esc(job.id)}">再実行</button>
-          <button type="button" class="secondary danger" data-job-action="delete" data-id="${esc(job.id)}">削除</button>
+          <button type="button" class="secondary" data-xjob-action="run" data-id="${esc(job.id)}">今すぐ投稿テスト</button>
+          <button type="button" class="secondary danger" data-xjob-action="delete" data-id="${esc(job.id)}">削除</button>
         </div>
-      </div>`).join('');
+      </div>
+    `).join('');
   }
 
-  function enqueueJob(type, summary, payload){
-    const jobs = read(LSB.jobs, []);
-    jobs.unshift({ id:uid(), type, summary, payload, status:'pending', createdAt:new Date().toISOString() });
-    write(LSB.jobs, jobs);
-    renderJobs();
-  }
-
-  function saveBackendSettings(){
-    const payload = {
-      workerUrl: document.getElementById('threadsBackendUrl')?.value?.trim() || '',
-      webhookSecret: document.getElementById('threadsWebhookSecret')?.value?.trim() || '',
-      dmEndpoint: document.getElementById('threadsDmEndpoint')?.value?.trim() || ''
-    };
-    write(LSB.backend, payload);
-    const st = document.getElementById('threadsBackendStatus');
-    if(st) st.textContent = `保存済み: ${payload.workerUrl || 'Worker未設定'} / ${payload.dmEndpoint || 'DM未設定'}`;
-    addBackendLog('バックエンド連携設定を保存しました');
-    toast('連携設定を保存しました');
-  }
-
-  function loadBackendSettings(){
-    const payload = read(LSB.backend, null);
-    if(!payload) return;
-    const a=document.getElementById('threadsBackendUrl'); if(a) a.value=payload.workerUrl||'';
-    const b=document.getElementById('threadsWebhookSecret'); if(b) b.value=payload.webhookSecret||'';
-    const c=document.getElementById('threadsDmEndpoint'); if(c) c.value=payload.dmEndpoint||'';
-    const st = document.getElementById('threadsBackendStatus');
-    if(st) st.textContent = `保存済み: ${payload.workerUrl || 'Worker未設定'} / ${payload.dmEndpoint || 'DM未設定'}`;
-  }
-
-  function processWebhookObject(obj, source){
-    const user = String(obj.user || '@demo_user').trim();
-    const comment = String(obj.comment || '').trim();
-    const post = String(obj.post || '').trim();
-    const rules = read('threads_rules_v1', []);
-    const dm = read('threads_dm_v1', { template:'ありがとうございます。詳細案内はこちらです。必要ならそのまま返信ください。' });
-    const tpl = dm.template || 'ありがとうございます。詳細案内はこちらです。必要ならそのまま返信ください。';
-    const rule = rules.find(r => (r.keywords || []).some(k => comment.toLowerCase().includes(String(k).toLowerCase())));
-    const dmCandidate = tpl.replace(/\{\{\s*username\s*\}\}/g, user).replace(/\{\{\s*comment\s*\}\}/g, comment);
-
-    const leads = read('threads_leads_v1', []);
-    leads.unshift({
-      id: uid(), user, comment, post,
-      status: rule ? 'DM候補作成済み' : '新規',
-      matchedRule: rule ? (rule.name || '') : '',
-      publicReply: rule ? (rule.reply || '') : '',
-      dmCandidate: rule ? dmCandidate : '',
+  function saveMonitor(){
+    const arr = read(LS.monitors, []);
+    arr.unshift({
+      id: uid(),
+      name: document.getElementById('threadsMonitorName')?.value?.trim() || '',
+      url: document.getElementById('threadsMonitorUrl')?.value?.trim() || '',
+      interval: document.getElementById('threadsMonitorInterval')?.value || '10',
+      mode: document.getElementById('threadsMonitorMode')?.value || 'reply',
       createdAt: new Date().toISOString()
     });
-    localStorage.setItem('threads_leads_v1', JSON.stringify(leads));
+    write(LS.monitors, arr);
+    renderMonitorList();
+    appendThreadsLog('投稿監視BOT設定を保存しました');
+    toast('監視設定を保存しました');
+  }
 
-    enqueueJob(rule ? 'reply_job' : 'lead_job', rule ? `${user} のコメントに公開返信を作成` : `${user} のコメントをリード保存`, {
-      user, comment, post,
-      matchedRule: rule ? (rule.name || '') : '',
-      publicReply: rule ? (rule.reply || '') : '',
-      dmCandidate: rule ? dmCandidate : ''
+  function exportLeads(type){
+    const leads = read('threads_leads_v1', []);
+    if(!leads.length){
+      toast('出力できるリードがありません');
+      return;
+    }
+
+    let blob, filename;
+    if(type === 'csv'){
+      const header = ['user','comment','status','post','matchedRule','publicReply','dmCandidate','createdAt'];
+      const rows = leads.map(x => header.map(k => {
+        const v = String(x[k] ?? '');
+        return '"' + v.replace(/"/g, '""') + '"';
+      }).join(','));
+      blob = new Blob([[header.join(',')].concat(rows).join('\n')], { type: 'text/csv;charset=utf-8' });
+      filename = 'threads_leads.csv';
+    } else {
+      blob = new Blob([JSON.stringify(leads, null, 2)], { type: 'application/json;charset=utf-8' });
+      filename = 'threads_leads.json';
+    }
+
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(a.href);
+
+    const log = read(LS.exportlog, []);
+    log.unshift({ id: uid(), type: type.toUpperCase(), summary: `${leads.length}件を書き出し`, createdAt: new Date().toISOString() });
+    write(LS.exportlog, log);
+    renderExportLog();
+    appendThreadsLog(`リードを${type.toUpperCase()}で出力しました`);
+    toast(type.toUpperCase() + 'を出力しました');
+  }
+
+  function saveXJob(){
+    const arr = read(LS.xposts, []);
+    arr.unshift({
+      id: uid(),
+      title: document.getElementById('xAutoPostTitle')?.value?.trim() || '',
+      runAt: document.getElementById('xAutoPostAt')?.value || '',
+      text: document.getElementById('xAutoPostText')?.value?.trim() || '',
+      createdAt: new Date().toISOString()
     });
+    write(LS.xposts, arr);
+    renderXJobs();
+    toast('X自動ポスト予約を保存しました');
+  }
 
-    addBackendLog(rule ? `Webhook取り込み: ${user} / ${rule.name || '無名ルール'} に一致` : `Webhook取り込み: ${user} / ルール未一致`);
-    window.dispatchEvent(new CustomEvent('threads-log-updated'));
-    return {
-      source,
-      matchedRule: rule ? (rule.name || '') : '',
-      publicReply: rule ? (rule.reply || '') : '',
-      dmCandidate,
-      savedLead: true
+  function saveVersionMeta(){
+    const meta = {
+      version: document.getElementById('hcCurrentVersion')?.value?.trim() || 'v2.0.0',
+      note: document.getElementById('hcReleaseNote')?.value?.trim() || '',
+      updatedAt: new Date().toISOString()
     };
+    write(LS.version, meta);
+    const el = document.getElementById('hcVersionStatus');
+    if(el) el.textContent = `保存済み: ${meta.version} / ${jp(meta.updatedAt)}`;
+    toast('更新情報を保存しました');
   }
 
-  function runWebhookTest(){
-    const area = document.getElementById('threadsWebhookPayload');
-    const result = document.getElementById('threadsWebhookResult');
-    if(!area || !result) return;
-    try{
-      const obj = JSON.parse(area.value || '{}');
-      const processed = processWebhookObject(obj, 'manual_webhook_test');
-      result.textContent = JSON.stringify(processed, null, 2);
-      toast('Webhook受信テストを実行しました');
-    }catch(e){
-      result.textContent = 'JSONエラー: ' + e.message;
+  function checkVersionMeta(){
+    const meta = read(LS.version, null);
+    const el = document.getElementById('hcVersionStatus');
+    if(!el){
+      toast('更新情報エリアが見つかりません');
+      return;
     }
-  }
-
-  function fillWebhookSample(){
-    const area = document.getElementById('threadsWebhookPayload');
-    if(!area) return;
-    area.value = JSON.stringify({ post:'https://threads.net/t/demo', user:'@demo_user', comment:'詳細ほしいです' }, null, 2);
-  }
-
-  function runPendingJobs(singleId){
-    const jobs = read(LSB.jobs, []);
-    const backend = read(LSB.backend, {});
-    let changed = false;
-    const next = jobs.map(job => {
-      if(singleId && job.id !== singleId) return job;
-      if(!singleId && (job.status === 'done' || job.status === 'mock_done')) return job;
-      changed = true;
-      return { ...job, status: (backend.workerUrl || backend.dmEndpoint) ? 'done' : 'mock_done', lastRunAt:new Date().toISOString() };
-    });
-    if(changed){
-      write(LSB.jobs, next);
-      renderJobs();
-      addBackendLog(singleId ? 'ジョブを再実行しました' : '保留ジョブを再実行しました');
-      toast((backend.workerUrl || backend.dmEndpoint) ? 'ジョブを実行しました' : '接続先未設定のため mock_done にしました');
+    if(!meta){
+      el.textContent = '保存された更新情報はありません。';
+    } else {
+      el.textContent = `現在 ${meta.version} / 最終保存 ${jp(meta.updatedAt)} / メモ: ${meta.note || 'なし'}`;
     }
+    toast('更新情報を確認しました');
+  }
+
+  function licenseRemainDays(){
+    const exp = localStorage.getItem('license_expires_at') || localStorage.getItem('licenseExpiresAt') || localStorage.getItem('license_expires') || '';
+    if(!exp) return null;
+    const diff = new Date(exp).getTime() - Date.now();
+    if(!isFinite(diff)) return null;
+    return Math.ceil(diff / 86400000);
+  }
+
+  function mountLicenseRemainNote(){
+    const page = document.getElementById('sectionSettings');
+    if(!page || document.getElementById('hcLicenseRemainCard')) return;
+    const days = licenseRemainDays();
+    const statusText = days == null ? '未取得' : (days >= 0 ? '認証中' : '期限切れ');
+    const dayText = days == null ? '-' : String(days);
+    const firstCard = page.querySelector('.card');
+    if(!firstCard) return;
+    const wrap = document.createElement('div');
+    wrap.className = 'card';
+    wrap.id = 'hcLicenseRemainCard';
+    wrap.style.marginTop = '12px';
+    wrap.innerHTML = `
+      <div style="font-weight:800; margin-bottom:8px;">ライセンス残日数</div>
+      <div class="kpi-row">
+        <div class="kpi-box"><div class="threads-mini">残り日数</div><div class="num">${dayText}</div></div>
+        <div class="kpi-box"><div class="threads-mini">状態</div><div class="num" style="font-size:18px;">${statusText}</div></div>
+        <div class="kpi-box"><div class="threads-mini">モード</div><div class="num" style="font-size:18px;">開発用</div></div>
+      </div>`;
+    firstCard.after(wrap);
   }
 
   function bind(){
-    loadBackendSettings();
-    renderJobs();
-    document.getElementById('threadsSaveBackendBtn')?.addEventListener('click', saveBackendSettings);
-    document.getElementById('threadsWebhookTestBtn')?.addEventListener('click', runWebhookTest);
-    document.getElementById('threadsWebhookSampleBtn')?.addEventListener('click', fillWebhookSample);
-    document.getElementById('threadsRunPendingJobsBtn')?.addEventListener('click', ()=>runPendingJobs());
-    document.getElementById('threadsClearJobsBtn')?.addEventListener('click', ()=>{
-      if(!confirm('ジョブを全削除しますか？')) return;
-      localStorage.removeItem(LSB.jobs);
-      renderJobs();
-      addBackendLog('ジョブキューを全削除しました');
+    renderMonitorList();
+    renderExportLog();
+    renderXJobs();
+
+    document.getElementById('threadsSaveMonitorBtn')?.addEventListener('click', saveMonitor);
+    document.getElementById('threadsExportCsvBtn')?.addEventListener('click', ()=>exportLeads('csv'));
+    document.getElementById('threadsExportJsonBtn')?.addEventListener('click', ()=>exportLeads('json'));
+
+    document.getElementById('xAutoPostSaveBtn')?.addEventListener('click', saveXJob);
+    document.getElementById('xAutoPostRunNowBtn')?.addEventListener('click', ()=>{
+      const txt = document.getElementById('xAutoPostText')?.value?.trim() || '';
+      if(!txt){ toast('投稿内容を入れてください'); return; }
+      const url = 'https://twitter.com/intent/tweet?text=' + encodeURIComponent(txt);
+      window.open(url, '_blank', 'noopener');
+      toast('X投稿画面を開きました');
     });
-    document.addEventListener('click', (e)=>{
-      const btn = e.target.closest('[data-job-action]');
-      if(!btn) return;
-      const id = btn.dataset.id;
-      const action = btn.dataset.jobAction;
-      if(action === 'run') runPendingJobs(id);
-      if(action === 'delete'){
-        const jobs = read(LSB.jobs, []).filter(x => x.id !== id);
-        write(LSB.jobs, jobs);
-        renderJobs();
-        addBackendLog('ジョブを削除しました');
+
+    document.getElementById('hcSaveVersionBtn')?.addEventListener('click', saveVersionMeta);
+    document.getElementById('hcCheckVersionBtn')?.addEventListener('click', checkVersionMeta);
+
+    document.addEventListener('click', (e) => {
+      const mbtn = e.target.closest('[data-monitor-action]');
+      if(mbtn){
+        const id = mbtn.dataset.id;
+        const action = mbtn.dataset.monitorAction;
+        const arr = read(LS.monitors, []);
+        const item = arr.find(x => x.id === id);
+        if(action === 'delete'){
+          write(LS.monitors, arr.filter(x => x.id !== id));
+          renderMonitorList();
+          appendThreadsLog('監視設定を削除しました');
+        }
+        if(action === 'run' && item){
+          const jobs = read('threads_jobs_v1', []);
+          jobs.unshift({
+            id: uid(),
+            type: 'monitor_job',
+            summary: `監視実行: ${item.name || '無題'}`,
+            payload: item,
+            status: 'pending',
+            createdAt: new Date().toISOString()
+          });
+          write('threads_jobs_v1', jobs);
+          appendThreadsLog(`監視ジョブを追加: ${item.name || '無題'}`);
+          toast('監視ジョブを追加しました');
+        }
+      }
+
+      const xbtn = e.target.closest('[data-xjob-action]');
+      if(xbtn){
+        const id = xbtn.dataset.id;
+        const action = xbtn.dataset.xjobAction;
+        const arr = read(LS.xposts, []);
+        const item = arr.find(x => x.id === id);
+        if(action === 'delete'){
+          write(LS.xposts, arr.filter(x => x.id !== id));
+          renderXJobs();
+          toast('X予約を削除しました');
+        }
+        if(action === 'run' && item){
+          const url = 'https://twitter.com/intent/tweet?text=' + encodeURIComponent(item.text || '');
+          window.open(url, '_blank', 'noopener');
+          toast('X投稿画面を開きました');
+        }
       }
     });
-    window.addEventListener('threads-log-updated', ()=>{
-      renderJobs();
-    });
+
+    mountLicenseRemainNote();
   }
 
   if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bind);
