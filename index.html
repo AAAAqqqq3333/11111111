@@ -1181,6 +1181,38 @@ font-size:14px;
 
 }
 
+
+
+/* ===== Desktop hotfix (PC layout) ===== */
+#appContainer{
+  width:min(1400px, calc(100vw - 32px));
+  margin:0 auto;
+  box-sizing:border-box;
+}
+.app-shell, .app-content, .page-section, .row, .row3{ min-width:0; }
+.page-section{ width:100%; }
+#accountsDrawer{ width:min(360px, 32vw); max-width:100vw; }
+#accountsDrawer .drawerPanel{ height:100%; display:flex; flex-direction:column; }
+#accountsDrawer .drawerBody{ flex:1; min-height:0; overflow:auto; }
+#accountsDrawer input, #accountsDrawer textarea, #accountsDrawer select{ width:100%; }
+@media (min-width: 1100px){
+  .app-shell{
+    grid-template-columns: 240px minmax(0,1fr);
+    gap:20px;
+  }
+  .page-section#sectionX .row{
+    grid-template-columns: minmax(0,1.05fr) minmax(320px, .95fr);
+    align-items:start;
+  }
+  .page-section#sectionDashboard .row3{
+    grid-template-columns: repeat(3, minmax(0,1fr));
+  }
+}
+@media (max-width: 1099px){
+  #appContainer{ width:calc(100vw - 20px); }
+  #accountsDrawer{ width:min(92vw, 420px); }
+}
+
 </style>
 
 <script>
@@ -1343,7 +1375,10 @@ function removeUndefinedFields(obj){
           <div>
             <h2>X</h2>
             <p class="muted">既存の投稿生成機能はそのまま残し、X専用ページとして分離しています。</p>
-          <div class="card" style="margin-top:12px;">
+          </div>
+        </div>
+
+        <div class="card" style="margin-top:12px;">
             <div style="font-weight:800; margin-bottom:8px;">X自動ポスト設定</div>
             <div class="muted">生成済みポストを予約として保存しておけるローカル管理機能です。後からWorker / Queue実行へ接続できます。</div>
             <div class="row">
@@ -1363,8 +1398,6 @@ function removeUndefinedFields(obj){
               <button type="button" class="secondary" id="xAutoPostRunNowBtn">今すぐ投稿テスト</button>
             </div>
             <div id="xAutoPostList" class="sched-list" style="margin-top:12px;"></div>
-          </div>
-          </div>
         </div>
 
   <div class="page active" id="pageMain">
@@ -3710,11 +3743,10 @@ function hcScrollToOutput(){
 
   <div id="drawerOverlay" aria-hidden="true"></div>
   <aside id="accountsDrawer" class="drawer" aria-hidden="true">
-  <div id="drawerOverlay" class="drawerOverlay" tabindex="-1"></div>
   <div class="drawerPanel" role="dialog" aria-modal="true" aria-label="設定 / アカウント">
     <div class="drawerHeader">
       <div class="drawerTitle">設定 / アカウント</div>
-      <button class="drawerClose" id="drawerCloseBtn" type="button" aria-label="閉じる">×</button>
+      <button class="drawerClose" id="drawerClose" type="button" aria-label="閉じる">×</button>
     </div>
 
     <div class="drawerBody" id="drawerBody">
